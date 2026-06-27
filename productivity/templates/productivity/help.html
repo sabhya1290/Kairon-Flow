@@ -1,0 +1,241 @@
+{% extends 'productivity/base.html' %}
+
+{% block title %}Kairon Flow - Help Center{% endblock %}
+
+{% block body_content %}
+<div class="min-h-screen bg-background text-on-surface font-body-md flex flex-col relative pb-xl">
+    <!-- Glow Backgrounds -->
+    <div class="absolute inset-0 pointer-events-none overflow-hidden z-0">
+        <div class="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] bg-primary/5 rounded-full blur-3xl"></div>
+        <div class="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-secondary/5 rounded-full blur-3xl"></div>
+    </div>
+
+    <!-- Navigation Header -->
+    <header class="h-16 border-b border-outline-variant bg-background/80 backdrop-blur-md flex justify-between items-center px-gutter w-full sticky top-0 z-50">
+        <div class="flex items-center gap-sm">
+            <span class="material-symbols-outlined text-primary text-[28px]">electric_bolt</span>
+            <span class="font-title-lg text-title-lg font-bold tracking-tight bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">Kairon Flow Help Center</span>
+        </div>
+        <div>
+            <button onclick="window.close()" class="bg-surface-container-highest hover:bg-surface-container-highest/80 text-on-surface text-body-sm py-xs px-md rounded-full font-medium transition-all duration-200 flex items-center gap-xs">
+                <span class="material-symbols-outlined text-[18px]">close</span>
+                Close Tab
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content Panel -->
+    <main class="max-w-container-max mx-auto px-gutter w-full mt-xl flex-1 grid grid-cols-1 lg:grid-cols-3 gap-xl relative z-10">
+        <!-- Left 2 Cols: Search, FAQ Accordion, Getting Started -->
+        <div class="lg:col-span-2 space-y-xl">
+            <!-- Search & Welcome -->
+            <div class="text-center py-lg space-y-sm max-w-xl mx-auto">
+                <h2 class="font-headline-lg text-headline-lg font-semibold text-on-surface">How can we help you today?</h2>
+                <div class="relative mt-md w-full text-on-surface-variant">
+                    <span class="material-symbols-outlined absolute left-md top-1/2 -translate-y-1/2">search</span>
+                    <input type="text" id="faq-search" onkeyup="filterFAQs()" class="w-full bg-surface-container-high border border-outline-variant/60 rounded-full py-sm pl-[48px] pr-md text-body-lg focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-outline/70 shadow-lg" placeholder="Search for questions, features, shortcuts...">
+                </div>
+            </div>
+
+            <!-- Getting Started Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-md">
+                <div class="bg-surface-container-high/60 border border-outline-variant/30 rounded-xl p-md space-y-sm hover:border-primary/20 transition-all duration-300">
+                    <span class="material-symbols-outlined text-primary text-[32px]">chat_bubble</span>
+                    <h3 class="font-title-sm text-title-sm font-semibold text-on-surface">Chat Workspace</h3>
+                    <p class="font-body-sm text-body-sm text-on-surface-variant">Use natural language commands to add tasks, get status summaries, or clean up your conversation stream.</p>
+                </div>
+                <div class="bg-surface-container-high/60 border border-outline-variant/30 rounded-xl p-md space-y-sm hover:border-secondary/20 transition-all duration-300">
+                    <span class="material-symbols-outlined text-secondary text-[32px]">task_alt</span>
+                    <h3 class="font-title-sm text-title-sm font-semibold text-on-surface">Task Scheduling</h3>
+                    <p class="font-body-sm text-body-sm text-on-surface-variant">Configure tasks with flexible priority levels, specific durations, due dates, and custom tags.</p>
+                </div>
+                <div class="bg-surface-container-high/60 border border-outline-variant/30 rounded-xl p-md space-y-sm hover:border-tertiary/20 transition-all duration-300">
+                    <span class="material-symbols-outlined text-tertiary text-[32px]">insert_chart</span>
+                    <h3 class="font-title-sm text-title-sm font-semibold text-on-surface">Habits &amp; Stats</h3>
+                    <p class="font-body-sm text-body-sm text-on-surface-variant">Set habits, check-in daily, and view productivity performance matrices automatically compiled by AI.</p>
+                </div>
+            </div>
+
+            <!-- FAQ Accordion -->
+            <div class="bg-surface-container-high border border-outline-variant rounded-xl p-lg space-y-md">
+                <h3 class="font-title-md text-title-md font-semibold text-on-surface mb-xs">Frequently Asked Questions</h3>
+                <div class="space-y-sm" id="faq-list">
+                    <!-- FAQ 1 -->
+                    <div class="faq-item border border-outline-variant/30 rounded-lg overflow-hidden transition-all duration-200">
+                        <button onclick="toggleFAQ(this)" class="w-full flex justify-between items-center p-md bg-surface-container/30 hover:bg-surface-container/70 text-left font-medium text-on-surface transition-colors">
+                            <span class="faq-question">How do I connect my Google Calendar?</span>
+                            <span class="material-symbols-outlined faq-icon transition-transform duration-200">expand_more</span>
+                        </button>
+                        <div class="faq-answer max-h-0 overflow-hidden transition-all duration-300 ease-out bg-surface-container/10">
+                            <p class="p-md text-on-surface-variant font-body-md leading-relaxed">
+                                Go to the **Integration Settings** page from the sidebar menu, choose "Connect Google" under Connect Services, authorize the sync connection by entering your email account, and verify the sync status.
+                            </p>
+                        </div>
+                    </div>
+                    <!-- FAQ 2 -->
+                    <div class="faq-item border border-outline-variant/30 rounded-lg overflow-hidden transition-all duration-200">
+                        <button onclick="toggleFAQ(this)" class="w-full flex justify-between items-center p-md bg-surface-container/30 hover:bg-surface-container/70 text-left font-medium text-on-surface transition-colors">
+                            <span class="faq-question">Can I manage tasks with keyboard shortcuts?</span>
+                            <span class="material-symbols-outlined faq-icon transition-transform duration-200">expand_more</span>
+                        </button>
+                        <div class="faq-answer max-h-0 overflow-hidden transition-all duration-300 ease-out bg-surface-container/10">
+                            <p class="p-md text-on-surface-variant font-body-md leading-relaxed">
+                                Yes! Keyboard shortcuts are available throughout the app workspace. Check the reference card on the right-hand panel of this help page to view the shortcut commands.
+                            </p>
+                        </div>
+                    </div>
+                    <!-- FAQ 3 -->
+                    <div class="faq-item border border-outline-variant/30 rounded-lg overflow-hidden transition-all duration-200">
+                        <button onclick="toggleFAQ(this)" class="w-full flex justify-between items-center p-md bg-surface-container/30 hover:bg-surface-container/70 text-left font-medium text-on-surface transition-colors">
+                            <span class="faq-question">What are AI efficiency insights?</span>
+                            <span class="material-symbols-outlined faq-icon transition-transform duration-200">expand_more</span>
+                        </button>
+                        <div class="faq-answer max-h-0 overflow-hidden transition-all duration-300 ease-out bg-surface-container/10">
+                            <p class="p-md text-on-surface-variant font-body-md leading-relaxed">
+                                AI efficiency insights are contextually generated suggestions provided based on your activity, habit completions, and tasks. You can view them on the Analytics &amp; Habits page.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Col: Shortcut cheatsheet, Feedback Simulator -->
+        <div class="space-y-xl">
+            <!-- Shortcut Reference -->
+            <div class="bg-surface-container-high border border-outline-variant rounded-xl p-lg">
+                <h3 class="font-title-md text-title-md font-semibold text-on-surface mb-md">Keyboard Shortcuts</h3>
+                <div class="space-y-xs">
+                    <div class="flex justify-between items-center py-xs border-b border-outline-variant/20">
+                        <span class="text-on-surface-variant font-body-sm">New Task Modal</span>
+                        <kbd class="px-sm py-xs bg-surface-container-highest border border-outline-variant/40 rounded text-[11px] font-mono shadow-sm">N</kbd>
+                    </div>
+                    <div class="flex justify-between items-center py-xs border-b border-outline-variant/20">
+                        <span class="text-on-surface-variant font-body-sm">Submit Form</span>
+                        <kbd class="px-sm py-xs bg-surface-container-highest border border-outline-variant/40 rounded text-[11px] font-mono shadow-sm">Ctrl + Enter</kbd>
+                    </div>
+                    <div class="flex justify-between items-center py-xs border-b border-outline-variant/20">
+                        <span class="text-on-surface-variant font-body-sm">Toggle Sidebar</span>
+                        <kbd class="px-sm py-xs bg-surface-container-highest border border-outline-variant/40 rounded text-[11px] font-mono shadow-sm">[</kbd>
+                    </div>
+                    <div class="flex justify-between items-center py-xs">
+                        <span class="text-on-surface-variant font-body-sm">Focus Search Bar</span>
+                        <kbd class="px-sm py-xs bg-surface-container-highest border border-outline-variant/40 rounded text-[11px] font-mono shadow-sm">/</kbd>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Support Request / Feedback Mock -->
+            <div class="bg-surface-container-high border border-outline-variant rounded-xl p-lg space-y-md">
+                <div>
+                    <h3 class="font-title-md text-title-md font-semibold text-on-surface">Submit Support Ticket</h3>
+                    <p class="font-body-sm text-body-sm text-on-surface-variant">Still need help? Get in touch with our team.</p>
+                </div>
+                <form id="support-form" class="space-y-sm">
+                    <div>
+                        <label class="block font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-xs" for="support-subject">Subject</label>
+                        <input type="text" id="support-subject" required class="w-full bg-surface-container border border-outline-variant/50 rounded-lg p-sm text-on-surface font-body-md focus:outline-none focus:border-primary/50 transition-all" placeholder="Brief summary of the issue">
+                    </div>
+                    <div>
+                        <label class="block font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-xs" for="support-message">Message Details</label>
+                        <textarea id="support-message" rows="4" required class="w-full bg-surface-container border border-outline-variant/50 rounded-lg p-sm text-on-surface font-body-md focus:outline-none focus:border-primary/50 transition-all" placeholder="How can we assist you?"></textarea>
+                    </div>
+                    <button type="submit" class="w-full bg-primary hover:bg-primary/90 text-on-primary py-sm px-md rounded-lg font-medium text-body-sm transition-all duration-200 flex items-center justify-center gap-xs">
+                        <span class="material-symbols-outlined text-[18px]">send</span>
+                        Submit Ticket
+                    </button>
+                </form>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Simple Toast Toast Notification for Help Page -->
+<div id="help-toast-container" class="fixed top-md right-md z-50 flex flex-col gap-sm max-w-sm pointer-events-none"></div>
+
+<script>
+    function toggleFAQ(button) {
+        const answer = button.nextElementSibling;
+        const icon = button.querySelector('.faq-icon');
+        
+        if (answer.style.maxHeight && answer.style.maxHeight !== '0px') {
+            answer.style.maxHeight = '0px';
+            icon.style.transform = 'rotate(0deg)';
+        } else {
+            // Close other FAQ items first
+            document.querySelectorAll('.faq-answer').forEach(ans => {
+                ans.style.maxHeight = '0px';
+                const btn = ans.previousElementSibling;
+                btn.querySelector('.faq-icon').style.transform = 'rotate(0deg)';
+            });
+            
+            // Expand this one
+            answer.style.maxHeight = answer.scrollHeight + 'px';
+            icon.style.transform = 'rotate(180deg)';
+        }
+    }
+
+    function filterFAQs() {
+        const query = document.getElementById('faq-search').value.toLowerCase();
+        const faqItems = document.querySelectorAll('.faq-item');
+        
+        faqItems.forEach(item => {
+            const question = item.querySelector('.faq-question').textContent.toLowerCase();
+            const answer = item.querySelector('.faq-answer').textContent.toLowerCase();
+            
+            if (question.includes(query) || answer.includes(query)) {
+                item.style.display = 'block';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    }
+
+    // Support Form Toast Notification
+    const supportForm = document.getElementById('support-form');
+    supportForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Show local toast
+        showHelpToast('Your support ticket was submitted successfully! We will get back to you shortly.', 'success');
+        
+        // Reset form
+        supportForm.reset();
+    });
+
+    function showHelpToast(message, type) {
+        const container = document.getElementById('help-toast-container');
+        const toast = document.createElement('div');
+        toast.className = 'glass-panel p-md rounded-xl border border-outline-variant/30 text-on-surface shadow-2xl flex items-center gap-sm transform translate-y-[-20px] opacity-0 transition-all duration-300 ease-out pointer-events-auto';
+        
+        let icon = 'info';
+        if (type === 'success') {
+            toast.classList.add('border-primary/45');
+            icon = 'check_circle';
+        } else if (type === 'warning') {
+            toast.classList.add('border-error/45');
+            icon = 'warning';
+        }
+        
+        toast.innerHTML = `
+            <span class="material-symbols-outlined text-primary">${icon}</span>
+            <span class="font-body-md text-body-md">${message}</span>
+        `;
+        
+        container.appendChild(toast);
+        
+        // Slide in
+        setTimeout(() => {
+            toast.classList.remove('translate-y-[-20px]', 'opacity-0');
+        }, 10);
+        
+        // Dismiss after 4s
+        setTimeout(() => {
+            toast.classList.add('translate-y-[-20px]', 'opacity-0');
+            setTimeout(() => {
+                toast.remove();
+            }, 300);
+        }, 4000);
+    }
+</script>
+{% endblock %}

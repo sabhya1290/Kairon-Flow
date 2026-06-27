@@ -1,0 +1,607 @@
+{% extends 'productivity/app_layout.html' %}
+{% load task_filters %}
+
+{% block title %}Kairon Flow - Master Tasks{% endblock %}
+
+{% block main_content %}
+{% csrf_token %}
+<!-- Main Content Canvas -->
+<div class="flex-1 h-screen flex flex-col relative overflow-x-hidden">
+    <!-- Subtle Ambient Background -->
+    <div class="absolute inset-0 pointer-events-none overflow-hidden z-0">
+        <div class="absolute top-[-10%] right-[-5%] w-96 h-96 bg-primary-container/5 rounded-full blur-3xl"></div>
+        <div class="absolute bottom-[-10%] left-[20%] w-[500px] h-[500px] bg-secondary-container/5 rounded-full blur-3xl"></div>
+    </div>
+    
+    <!-- Header Area -->
+    <header class="px-lg md:px-xl py-lg z-20 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-md border-b border-outline-variant/20 bg-surface/80 backdrop-blur-md sticky top-0">
+        <div>
+            <h2 class="font-display-lg text-headline-lg md:text-display-lg text-on-surface tracking-tight">Master Task Repository</h2>
+            <p class="font-body-md text-on-surface-variant mt-1" id="task-summary-text">
+                {{ tasks.count }} tasks total.
+            </p>
+        </div>
+        <div class="flex items-center gap-sm w-full sm:w-auto">
+            <!-- Add Task Manually -->
+            <button onclick="window.openCreateTaskModal()" class="flex items-center gap-2 bg-primary-container hover:opacity-90 text-on-primary-container px-3 py-2 rounded-lg border border-primary/20 shadow-md transition-all font-body-md font-semibold">
+                <span class="material-symbols-outlined text-sm">add</span>
+                <span>Add Task</span>
+            </button>
+            
+            <!-- Search -->
+            <div class="relative w-full sm:w-64 group">
+                <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors text-sm">search</span>
+                <input id="task-search-input" class="w-full bg-surface-container-high border border-outline-variant/50 rounded-lg py-2 pl-10 pr-4 text-on-surface font-body-md focus:outline-none focus:border-secondary-container focus:ring-1 focus:ring-secondary-container/50 transition-all placeholder:text-outline/70" placeholder="Search tasks..." type="text">
+            </div>
+            <!-- View Toggle -->
+            <div class="flex items-center bg-surface-container-highest rounded-lg p-1 border border-outline-variant/30">
+                <button id="view-list-btn" class="p-1.5 rounded bg-surface-variant text-primary shadow-sm flex items-center justify-center transition-colors" title="List View">
+                    <span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">view_list</span>
+                </button>
+                <button id="view-grid-btn" class="p-1.5 rounded text-on-surface-variant hover:text-on-surface transition-colors flex items-center justify-center" title="Grid View">
+                    <span class="material-symbols-outlined text-sm">grid_view</span>
+                </button>
+            </div>
+            <!-- Filter -->
+            <div class="relative inline-block text-left" id="filter-dropdown-container">
+                <button id="filter-btn" class="flex items-center gap-2 bg-surface-container-high hover:bg-surface-variant text-on-surface px-3 py-2 rounded-lg border border-outline-variant/50 transition-colors font-body-md">
+                    <span class="material-symbols-outlined text-sm">tune</span>
+                    <span class="hidden md:inline">Filters</span>
+                </button>
+                <!-- Dropdown Menu -->
+                <div id="filter-dropdown-menu" class="hidden absolute right-0 mt-2 w-72 origin-top-right rounded-xl bg-surface-container-highest border border-outline-variant/50 shadow-2xl p-4 space-y-4 z-50 backdrop-blur-md">
+                    <div class="flex justify-between items-center pb-2 border-b border-outline-variant/30">
+                        <span class="font-title-sm text-sm font-semibold text-primary">Filter Tasks</span>
+                        <button id="filter-clear-btn" class="text-xs text-on-surface-variant hover:text-primary transition-colors">Clear All</button>
+                    </div>
+                    
+                    <!-- Filter Options -->
+                    <div class="space-y-3">
+                        <!-- Priority -->
+                        <div>
+                            <label class="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1">Priority</label>
+                            <select id="filter-priority" class="w-full bg-surface-container border border-outline-variant/50 rounded-lg p-sm text-on-surface text-sm focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50">
+                                <option value="ALL" class="bg-surface-container-highest">All Priorities</option>
+                                <option value="HIGH" class="bg-surface-container-highest">High</option>
+                                <option value="MEDIUM" class="bg-surface-container-highest">Medium</option>
+                                <option value="LOW" class="bg-surface-container-highest">Low</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Status -->
+                        <div>
+                            <label class="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1">Status</label>
+                            <select id="filter-status" class="w-full bg-surface-container border border-outline-variant/50 rounded-lg p-sm text-on-surface text-sm focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50">
+                                <option value="ALL" class="bg-surface-container-highest">All Statuses</option>
+                                <option value="ACTIVE" class="bg-surface-container-highest">Active</option>
+                                <option value="COMPLETED" class="bg-surface-container-highest">Completed</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Category -->
+                        <div>
+                            <label class="block text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1">Category</label>
+                            <select id="filter-category" class="w-full bg-surface-container border border-outline-variant/50 rounded-lg p-sm text-on-surface text-sm focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50">
+                                <option value="ALL" class="bg-surface-container-highest">All Categories</option>
+                                {% for cat in categories %}
+                                    <option value="{{ cat.id }}" class="bg-surface-container-highest">#{{ cat.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- List View Content -->
+    <div id="tasks-table-container" class="flex-1 overflow-auto p-lg md:p-xl z-10">
+        <div class="glass-panel rounded-xl overflow-hidden shadow-lg border border-outline-variant/20 flex flex-col max-w-container-max mx-auto h-full min-h-[400px]">
+            <!-- Table Header -->
+            <div class="grid grid-cols-[40px_minmax(200px,2fr)_100px_80px_120px_40px] gap-4 p-4 border-b border-outline-variant/30 bg-surface-container-highest/50 font-label-sm text-label-sm text-outline uppercase tracking-wider sticky top-0 z-20">
+                <div class="flex items-center justify-center">
+                    <input class="rounded border-outline-variant bg-surface-container text-primary focus:ring-primary focus:ring-offset-surface w-4 h-4 cursor-pointer" type="checkbox" id="select-all-tasks">
+                </div>
+                <div class="">Task Title</div>
+                <div class="">Category</div>
+                <div class="text-center">AI Score</div>
+                <div class="">Due Date</div>
+                <div class="text-center"></div>
+            </div>
+            
+            <!-- Table Body -->
+            <div class="flex-1 overflow-y-auto divide-y divide-outline-variant/10" id="tasks-table-body">
+                {% for task in tasks %}
+                    <div class="grid grid-cols-[40px_minmax(200px,2fr)_100px_80px_120px_40px] gap-4 p-4 border-l-2 border-l-transparent row-hover transition-colors items-center group task-row-el" 
+                         data-id="{{ task.id }}" data-title="{{ task.title }}" data-priority="{{ task.priority }}" data-ai-score="{{ task.ai_score }}" data-completed="{% if task.completed %}true{% else %}false{% endif %}"
+                         data-category-id="{{ task.category.id|default:'' }}" data-due-date="{% if task.due_date %}{{ task.due_date|date:'Y-m-d' }}T{{ task.due_date|date:'H:i' }}{% endif %}">
+                        
+                        <div class="flex items-center justify-center">
+                            <input class="rounded border-outline-variant bg-surface-container text-primary focus:ring-primary focus:ring-offset-surface w-4 h-4 cursor-pointer task-row-checkbox" 
+                                   type="checkbox" {% if task.completed %}checked{% endif %}
+                                   data-task-id="{{ task.id }}">
+                        </div>
+                        
+                        <div class="flex items-center gap-3 min-w-0">
+                            {% if task.priority == 'HIGH' %}
+                                <span class="w-2 h-2 rounded-full bg-error flex-shrink-0"></span>
+                            {% elif task.priority == 'MEDIUM' %}
+                                <span class="w-2 h-2 rounded-full bg-secondary-container flex-shrink-0"></span>
+                            {% else %}
+                                <span class="w-2 h-2 rounded-full border border-outline-variant flex-shrink-0"></span>
+                            {% endif %}
+                            
+                            <span class="font-title-md text-on-surface truncate font-medium task-row-title {% if task.completed %}line-through opacity-50{% endif %}">
+                                {{ task.title }}
+                            </span>
+                        </div>
+                        
+                        <div>
+                            {% if task.category %}
+                                <span class="px-2 py-1 rounded-md bg-surface-container-high text-on-surface-variant font-label-sm text-xs border border-outline-variant/30">
+                                    #{{ task.category.name }}
+                                </span>
+                            {% else %}
+                                <span class="px-2 py-1 rounded-md bg-surface-container-high text-on-surface-variant/40 font-label-sm text-xs border border-outline-variant/10">
+                                    None
+                                </span>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="flex justify-center">
+                            {% if task.priority == 'HIGH' %}
+                                <div class="w-8 h-8 rounded flex items-center justify-center bg-error/10 text-error font-label-sm border border-error/20 font-bold shadow-[0_0_8px_rgba(255,180,171,0.2)]">
+                                    {{ task.ai_score }}
+                                </div>
+                            {% elif task.priority == 'MEDIUM' %}
+                                <div class="w-8 h-8 rounded flex items-center justify-center bg-secondary-container/10 text-secondary border border-secondary-container/30 font-label-sm">
+                                    {{ task.ai_score }}
+                                </div>
+                            {% else %}
+                                <div class="w-8 h-8 rounded flex items-center justify-center bg-surface-container-high text-outline border border-outline-variant/30 font-label-sm">
+                                    {{ task.ai_score }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="font-body-md text-sm {% if task.due_date|is_overdue %}text-error{% elif task.priority == 'HIGH' %}text-error{% else %}text-on-surface-variant{% endif %}">
+                            {% if task.due_date %}
+                                {{ task.due_date|format_due }}
+                                <span class="block font-label-sm text-label-sm {% if task.due_date|is_overdue %}text-error{% else %}text-primary{% endif %} mt-0.5">
+                                    ⏱ {{ task.due_date|time_remaining }}
+                                </span>
+                            {% else %}
+                                No deadline
+                            {% endif %}
+                        </div>
+                        
+                        <div class="flex justify-center opacity-0 group-hover:opacity-100 transition-opacity gap-2">
+                            <button class="text-outline hover:text-on-surface edit-task-trigger" 
+                                    data-task-id="{{ task.id }}" data-title="{{ task.title }}" data-priority="{{ task.priority }}"
+                                    data-category-id="{{ task.category.id|default:'' }}" data-due-date="{% if task.due_date %}{{ task.due_date|date:'Y-m-d' }}T{{ task.due_date|date:'H:i' }}{% endif %}"
+                                    title="Edit Task">
+                                <span class="material-symbols-outlined text-sm">edit</span>
+                            </button>
+                            <button class="text-outline hover:text-error delete-task-row-btn" 
+                                    data-task-id="{{ task.id }}"
+                                    title="Delete Task">
+                                <span class="material-symbols-outlined text-sm">delete</span>
+                            </button>
+                        </div>
+                    </div>
+                {% empty %}
+                    <div class="p-lg text-center text-on-surface-variant font-body-lg">
+                        No tasks found. Try typing a message in the chat box to assign one!
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Grid View Content -->
+    <div id="tasks-grid-container" class="hidden flex-1 overflow-auto p-lg md:p-xl z-10">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-md max-w-container-max mx-auto" id="tasks-grid-body">
+            <!-- Cards will be populated here by JavaScript -->
+        </div>
+    </div>
+</div>
+
+<script>
+    // CSRF Token Helper
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    function getCsrfToken() {
+        const tokenInput = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (tokenInput) return tokenInput.value;
+        return getCookie('csrftoken');
+    }
+
+    // Generate grid cards dynamically from row data
+    function generateGridCards() {
+        const rows = document.querySelectorAll('.task-row-el');
+        const gridBody = document.getElementById('tasks-grid-body');
+        if (!gridBody) return;
+        
+        gridBody.innerHTML = '';
+        
+        if (rows.length === 0) {
+            gridBody.innerHTML = `
+                <div class="col-span-full p-lg text-center text-on-surface-variant font-body-lg">
+                    No tasks found. Try typing a message in the chat box to assign one!
+                </div>
+            `;
+            return;
+        }
+        
+        rows.forEach(row => {
+            const id = row.getAttribute('data-id');
+            const title = row.getAttribute('data-title');
+            const priority = row.getAttribute('data-priority');
+            const completed = row.getAttribute('data-completed') === 'true';
+            const categoryId = row.getAttribute('data-category-id') || '';
+            const dueDate = row.getAttribute('data-due-date') || '';
+            const aiScore = row.getAttribute('data-ai-score') || '0';
+            
+            // Find badges from the row to render in card
+            const categoryBadge = row.children[2] ? row.children[2].innerHTML.trim() : '';
+            const dueDateText = row.children[4] ? row.children[4].innerHTML.trim() : '';
+            
+            const card = document.createElement('div');
+            card.className = `glass-panel rounded-xl p-md border border-outline-variant/20 shadow-md flex flex-col justify-between task-card-el relative group/card hover:border-primary/30 transition-all duration-300 ${completed ? 'opacity-70' : ''}`;
+            card.setAttribute('data-id', id);
+            card.setAttribute('data-title', title);
+            card.setAttribute('data-priority', priority);
+            card.setAttribute('data-completed', completed ? 'true' : 'false');
+            card.setAttribute('data-category-id', categoryId);
+            card.setAttribute('data-due-date', dueDate);
+            
+            // Determine border indicator color based on priority
+            let priorityColorClass = 'border-l-4 border-l-outline-variant';
+            if (priority === 'HIGH') priorityColorClass = 'border-l-4 border-l-error';
+            else if (priority === 'MEDIUM') priorityColorClass = 'border-l-4 border-l-secondary';
+            
+            card.innerHTML = `
+                <div class="${priorityColorClass} pl-3 space-y-sm flex-1 flex flex-col justify-between">
+                    <div>
+                        <div class="flex justify-between items-start gap-sm">
+                            <span class="font-title-md text-on-surface font-semibold line-clamp-2 task-card-title ${completed ? 'line-through opacity-50' : ''}">
+                                ${title}
+                            </span>
+                            
+                            <!-- Actions -->
+                            <div class="flex items-center gap-xs opacity-0 group-hover/card:opacity-100 transition-opacity">
+                                <button class="text-outline hover:text-on-surface edit-task-trigger" 
+                                        data-task-id="${id}" data-title="${title}" data-priority="${priority}"
+                                        data-category-id="${categoryId}" data-due-date="${dueDate}"
+                                        title="Edit Task">
+                                    <span class="material-symbols-outlined text-sm">edit</span>
+                                </button>
+                                <button class="text-outline hover:text-error delete-task-row-btn" 
+                                        data-task-id="${id}"
+                                        title="Delete Task">
+                                    <span class="material-symbols-outlined text-sm">delete</span>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-sm flex flex-wrap gap-xs items-center">
+                            ${categoryBadge}
+                            <div class="flex items-center justify-center bg-surface-container-high text-outline border border-outline-variant/30 font-label-sm text-xs px-2 py-0.5 rounded">
+                                AI Score: <span class="font-bold ml-1">${aiScore}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-md pt-sm border-t border-outline-variant/10 flex justify-between items-center">
+                        <div class="flex items-center gap-sm">
+                            <input class="rounded border-outline-variant bg-surface-container text-primary focus:ring-primary focus:ring-offset-surface w-4 h-4 cursor-pointer task-row-checkbox" 
+                                   type="checkbox" ${completed ? 'checked' : ''}
+                                   data-task-id="${id}">
+                            <span class="font-label-sm text-xs text-on-surface-variant">Completed</span>
+                        </div>
+                        <div class="font-body-md text-xs text-right text-on-surface-variant">
+                            ${dueDateText}
+                        </div>
+                    </div>
+                </div>
+            `;
+            gridBody.appendChild(card);
+        });
+    }
+
+    // View toggling logic
+    function switchView(view) {
+        const viewListBtn = document.getElementById('view-list-btn');
+        const viewGridBtn = document.getElementById('view-grid-btn');
+        const tableContainer = document.getElementById('tasks-table-container');
+        const gridContainer = document.getElementById('tasks-grid-container');
+
+        if (!viewListBtn || !viewGridBtn || !tableContainer || !gridContainer) return;
+
+        if (view === 'grid') {
+            tableContainer.classList.add('hidden');
+            gridContainer.classList.remove('hidden');
+            
+            viewListBtn.classList.remove('bg-surface-variant', 'text-primary', 'shadow-sm');
+            viewListBtn.classList.add('text-on-surface-variant', 'hover:text-on-surface');
+            
+            viewGridBtn.classList.remove('text-on-surface-variant', 'hover:text-on-surface');
+            viewGridBtn.classList.add('bg-surface-variant', 'text-primary', 'shadow-sm');
+            
+            localStorage.setItem('tasks_view', 'grid');
+        } else {
+            gridContainer.classList.add('hidden');
+            tableContainer.classList.remove('hidden');
+            
+            viewGridBtn.classList.remove('bg-surface-variant', 'text-primary', 'shadow-sm');
+            viewGridBtn.classList.add('text-on-surface-variant', 'hover:text-on-surface');
+            
+            viewListBtn.classList.remove('text-on-surface-variant', 'hover:text-on-surface');
+            viewListBtn.classList.add('bg-surface-variant', 'text-primary', 'shadow-sm');
+            
+            localStorage.setItem('tasks_view', 'list');
+        }
+    }
+
+    const viewListBtnEl = document.getElementById('view-list-btn');
+    const viewGridBtnEl = document.getElementById('view-grid-btn');
+    if (viewListBtnEl && viewGridBtnEl) {
+        viewListBtnEl.addEventListener('click', () => switchView('list'));
+        viewGridBtnEl.addEventListener('click', () => switchView('grid'));
+    }
+
+    // Handle AJAX Row Checkboxes
+    document.addEventListener('change', function(e) {
+        if(e.target.classList.contains('task-row-checkbox')) {
+            const taskId = e.target.getAttribute('data-task-id');
+            const formData = new FormData();
+            formData.append('task_id', taskId);
+            
+            fetch(window.location.href, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCsrfToken(),
+                },
+                body: formData
+            })
+            .then(res => {
+                if (!res.ok) throw new Error('HTTP error ' + res.status);
+                return res.json();
+            })
+            .then(data => {
+                if (data.status === 'success') {
+                    // Update all checkboxes for this task
+                    document.querySelectorAll(`.task-row-checkbox[data-task-id="${taskId}"]`).forEach(cb => {
+                        cb.checked = data.completed;
+                    });
+                    
+                    // Update Row
+                    const row = document.querySelector(`.task-row-el[data-id="${taskId}"]`);
+                    if (row) {
+                        row.setAttribute('data-completed', data.completed ? 'true' : 'false');
+                        const rowTitle = row.querySelector('.task-row-title');
+                        if (rowTitle) {
+                            if (data.completed) rowTitle.classList.add('line-through', 'opacity-50');
+                            else rowTitle.classList.remove('line-through', 'opacity-50');
+                        }
+                    }
+                    
+                    // Update Card
+                    const card = document.querySelector(`.task-card-el[data-id="${taskId}"]`);
+                    if (card) {
+                        card.setAttribute('data-completed', data.completed ? 'true' : 'false');
+                        const cardTitle = card.querySelector('.task-card-title');
+                        if (cardTitle) {
+                            if (data.completed) {
+                                cardTitle.classList.add('line-through', 'opacity-50');
+                                card.classList.add('opacity-70');
+                            } else {
+                                cardTitle.classList.remove('line-through', 'opacity-50');
+                                card.classList.remove('opacity-70');
+                            }
+                        }
+                    }
+                    
+                    applyFilters();
+                } else {
+                    window.showToast('Error: ' + data.message, 'warning');
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                window.showToast('Request failed: ' + err.message, 'warning');
+            });
+        }
+    });
+
+    // Handle AJAX Row Deletion
+    document.addEventListener('click', function(e) {
+        const deleteBtn = e.target.closest('.delete-task-row-btn');
+        if (deleteBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            const taskId = deleteBtn.getAttribute('data-task-id');
+            
+            window.showConfirmModal('Do you want to delete or not?', () => {
+                const formData = new FormData();
+                formData.append('action', 'delete');
+                formData.append('task_id', taskId);
+                
+                fetch(window.location.href, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCsrfToken(),
+                    },
+                    body: formData
+                })
+                .then(res => {
+                    if (!res.ok) throw new Error('HTTP error ' + res.status);
+                    return res.json();
+                })
+                .then(data => {
+                    if (data.status === 'success') {
+                        const row = document.querySelector(`.task-row-el[data-id="${taskId}"]`);
+                        if (row) row.remove();
+                        const card = document.querySelector(`.task-card-el[data-id="${taskId}"]`);
+                        if (card) card.remove();
+                        applyFilters();
+                    } else {
+                        window.showToast('Error: ' + data.message, 'warning');
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    window.showToast('Request failed: ' + err.message, 'warning');
+                });
+            });
+        }
+    });
+
+    // Real-time search & dropdown filters combined
+    const searchInput = document.getElementById('task-search-input');
+    const filterBtn = document.getElementById('filter-btn');
+    const filterMenu = document.getElementById('filter-dropdown-menu');
+    const filterPriority = document.getElementById('filter-priority');
+    const filterStatus = document.getElementById('filter-status');
+    const filterCategory = document.getElementById('filter-category');
+    const filterClearBtn = document.getElementById('filter-clear-btn');
+    
+    if (filterBtn && filterMenu) {
+        filterBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            filterMenu.classList.toggle('hidden');
+        });
+        
+        // Prevent clicks inside dropdown from closing it
+        filterMenu.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+        
+        document.addEventListener('click', (e) => {
+            if (!filterMenu.contains(e.target) && !filterBtn.contains(e.target)) {
+                filterMenu.classList.add('hidden');
+            }
+        });
+    }
+
+    function applyFilters() {
+        const priorityVal = filterPriority ? filterPriority.value : 'ALL';
+        const statusVal = filterStatus ? filterStatus.value : 'ALL';
+        const categoryVal = filterCategory ? filterCategory.value : 'ALL';
+        const searchVal = searchInput ? searchInput.value.toLowerCase().trim() : "";
+        
+        const rows = document.querySelectorAll('.task-row-el');
+        rows.forEach(row => {
+            const priority = row.getAttribute('data-priority');
+            const completed = row.getAttribute('data-completed') === 'true';
+            const categoryId = row.getAttribute('data-category-id');
+            const title = row.getAttribute('data-title').toLowerCase();
+            
+            let show = true;
+            
+            // Search filter
+            if (searchVal && !title.includes(searchVal)) {
+                show = false;
+            }
+            
+            // Priority filter
+            if (priorityVal !== 'ALL' && priority !== priorityVal) {
+                show = false;
+            }
+            
+            // Status filter
+            if (statusVal !== 'ALL') {
+                if (statusVal === 'COMPLETED' && !completed) show = false;
+                if (statusVal === 'ACTIVE' && completed) show = false;
+            }
+            
+            // Category filter
+            if (categoryVal !== 'ALL' && categoryId !== categoryVal) {
+                show = false;
+            }
+            
+            if (show) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        // Also filter the grid cards!
+        const cards = document.querySelectorAll('.task-card-el');
+        cards.forEach(card => {
+            const priority = card.getAttribute('data-priority');
+            const completed = card.getAttribute('data-completed') === 'true';
+            const categoryId = card.getAttribute('data-category-id');
+            const title = card.getAttribute('data-title').toLowerCase();
+            
+            let show = true;
+            
+            if (searchVal && !title.includes(searchVal)) show = false;
+            if (priorityVal !== 'ALL' && priority !== priorityVal) show = false;
+            if (statusVal !== 'ALL') {
+                if (statusVal === 'COMPLETED' && !completed) show = false;
+                if (statusVal === 'ACTIVE' && completed) show = false;
+            }
+            if (categoryVal !== 'ALL' && categoryId !== categoryVal) show = false;
+            
+            if (show) {
+                card.style.display = '';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+        
+        updateTotalCounts();
+    }
+    
+    if (filterPriority) filterPriority.addEventListener('change', applyFilters);
+    if (filterStatus) filterStatus.addEventListener('change', applyFilters);
+    if (filterCategory) filterCategory.addEventListener('change', applyFilters);
+    if (searchInput) {
+        searchInput.addEventListener('input', applyFilters);
+    }
+    
+    if (filterClearBtn) {
+        filterClearBtn.addEventListener('click', () => {
+            if (filterPriority) filterPriority.value = 'ALL';
+            if (filterStatus) filterStatus.value = 'ALL';
+            if (filterCategory) filterCategory.value = 'ALL';
+            if (searchInput) searchInput.value = '';
+            applyFilters();
+        });
+    }
+
+    function updateTotalCounts() {
+        const rows = document.querySelectorAll('.task-row-el');
+        const completedRows = document.querySelectorAll('.task-row-el[data-completed="true"]');
+        const activeRows = rows.length - completedRows.length;
+        const summaryText = document.getElementById('task-summary-text');
+        if(summaryText) {
+            summaryText.textContent = `${activeRows} active tasks remaining of ${rows.length} total.`;
+        }
+    }
+
+    // Initialize cards and default view
+    document.addEventListener('DOMContentLoaded', () => {
+        generateGridCards();
+        updateTotalCounts();
+        
+        const savedView = localStorage.getItem('tasks_view') || 'list';
+        switchView(savedView);
+    });
+</script>
+{% endblock %}

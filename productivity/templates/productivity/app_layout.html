@@ -1,0 +1,545 @@
+{% extends 'productivity/base.html' %}
+
+{% block body_content %}
+<div class="h-screen w-full overflow-hidden flex flex-col md:flex-row">
+    <!-- TopNavBar (Mobile Only) -->
+    <nav class="md:hidden w-full h-16 bg-surface-container-lowest border-b border-outline-variant flex justify-between items-center px-lg z-50 fixed top-0 left-0">
+        <div class="flex items-center gap-sm">
+            <span class="material-symbols-outlined text-primary text-2xl" style="font-variation-settings: 'FILL' 1;">menu</span>
+            <span class="font-headline-lg-mobile text-headline-lg-mobile font-bold text-primary-container glow-text">Kairon Flow</span>
+        </div>
+        <div class="flex items-center gap-md">
+            <span class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors cursor-pointer">notifications</span>
+            <span class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors cursor-pointer">history</span>
+        </div>
+    </nav>
+
+    <!-- SideNavBar (Desktop Panel 1) -->
+    <aside class="fixed left-0 top-0 h-full z-40 hidden md:flex flex-col w-64 bg-surface-container-low border-r border-outline-variant shadow-sm transition-all duration-200 ease-in-out">
+        <div class="p-lg flex-shrink-0 flex items-center justify-between">
+            <div>
+                <h1 class="font-headline-lg text-headline-lg font-bold text-primary-container glow-text">Kairon Flow</h1>
+                <p class="font-label-sm text-label-sm text-on-surface-variant mt-xs tracking-wider uppercase">Flow State Active</p>
+            </div>
+        </div>
+        <div class="px-md pb-md">
+            <button id="new-session-btn" class="w-full bg-primary-container text-on-primary-container font-title-md text-title-md py-sm rounded-lg flex justify-center items-center gap-sm hover:opacity-90 transition-opacity shadow-[0_0_15px_rgba(160,120,255,0.2)]">
+                <span class="material-symbols-outlined">add</span>
+                New Session
+            </button>
+        </div>
+        <script>
+            document.getElementById('new-session-btn').addEventListener('click', function() {
+                // Get CSRF token
+                let csrfToken = null;
+                if (document.cookie) {
+                    document.cookie.split(';').forEach(c => {
+                        c = c.trim();
+                        if (c.startsWith('csrftoken=')) csrfToken = decodeURIComponent(c.substring(10));
+                    });
+                }
+                fetch('/api/chat/clear/', {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': csrfToken }
+                })
+                .then(() => { window.location.href = '{% url "dashboard" %}'; })
+                .catch(() => { window.location.href = '{% url "dashboard" %}'; });
+            });
+        </script>
+        
+        <!-- Navigation Links -->
+        <nav class="flex-1 overflow-y-auto hide-scroll py-sm px-sm space-y-xs">
+            <a class="flex items-center gap-md {% if current_tab == 'chat' %}bg-surface-container-highest text-primary border-l-2 border-primary{% else %}text-on-surface-variant border-l-2 border-transparent hover:bg-surface-container-high hover:text-on-surface{% endif %} px-md py-sm rounded-r-md transition-all duration-200 ease-in-out" href="{% url 'dashboard' %}">
+                <span class="material-symbols-outlined">chat_bubble</span>
+                <span class="font-body-md text-body-md font-medium">Chat Workspace</span>
+            </a>
+            <a class="flex items-center gap-md {% if current_tab == 'tasks' %}bg-surface-container-highest text-primary border-l-2 border-primary{% else %}text-on-surface-variant border-l-2 border-transparent hover:bg-surface-container-high hover:text-on-surface{% endif %} px-md py-sm rounded-r-md transition-all duration-200 ease-in-out" href="{% url 'tasks' %}">
+                <span class="material-symbols-outlined">task_alt</span>
+                <span class="font-body-md text-body-md font-medium">Master Task List</span>
+            </a>
+            <a class="flex items-center gap-md {% if current_tab == 'analytics' %}bg-surface-container-highest text-primary border-l-2 border-primary{% else %}text-on-surface-variant border-l-2 border-transparent hover:bg-surface-container-high hover:text-on-surface{% endif %} px-md py-sm rounded-r-md transition-all duration-200 ease-in-out" href="{% url 'analytics' %}">
+                <span class="material-symbols-outlined">insert_chart</span>
+                <span class="font-body-md text-body-md font-medium">Analytics &amp; Habits</span>
+            </a>
+            <a class="flex items-center gap-md {% if current_tab == 'settings' %}bg-surface-container-highest text-primary border-l-2 border-primary{% else %}text-on-surface-variant border-l-2 border-transparent hover:bg-surface-container-high hover:text-on-surface{% endif %} px-md py-sm rounded-r-md transition-all duration-200 ease-in-out" href="{% url 'settings' %}">
+                <span class="material-symbols-outlined">settings</span>
+                <span class="font-body-md text-body-md font-medium">Integration Settings</span>
+            </a>
+        </nav>
+        
+        <!-- Sidebar Footer -->
+        <div class="p-md border-t border-outline-variant space-y-sm flex-shrink-0">
+            <a class="flex items-center gap-md text-on-surface-variant px-md py-sm hover:bg-surface-container-high hover:text-on-surface rounded-md transition-all duration-200 ease-in-out" href="{% url 'help' %}" target="_blank">
+                <span class="material-symbols-outlined">help</span>
+                <span class="font-body-md text-body-md font-medium">Help</span>
+            </a>
+            <div class="flex items-center justify-between p-sm hover:bg-surface-container-high rounded-md transition-colors mt-sm relative group">
+                <div class="flex items-center gap-sm">
+                    <img alt="User Avatar" class="w-8 h-8 rounded-full object-cover border border-outline-variant" src="{{ profile.avatar_url }}">
+                    <span class="font-label-sm text-label-sm text-on-surface">{{ request.user.username }}</span>
+                </div>
+                <a href="{% url 'logout' %}" class="material-symbols-outlined text-on-surface-variant hover:text-error transition-colors cursor-pointer" title="Sign Out">logout</a>
+            </div>
+        </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 flex flex-col md:flex-row mt-16 md:mt-0 md:ml-64 h-[calc(100vh-64px)] md:h-screen w-full pb-16 md:pb-0 relative">
+        {% block main_content %}{% endblock %}
+    </main>
+
+    <!-- BottomNavBar (Mobile Only) -->
+    <nav class="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 py-2 bg-surface-container-highest/80 backdrop-blur-md border-t border-outline-variant rounded-t-xl shadow-lg">
+        <a class="flex flex-col items-center justify-center {% if current_tab == 'chat' %}bg-primary-container text-on-primary-container{% else %}text-on-surface-variant hover:text-primary{% endif %} rounded-xl p-2 active:scale-90 transition-transform" href="{% url 'dashboard' %}">
+            <span class="material-symbols-outlined">chat_bubble</span>
+            <span class="font-label-sm text-label-sm mt-1">Chat</span>
+        </a>
+        <a class="flex flex-col items-center justify-center {% if current_tab == 'tasks' %}bg-primary-container text-on-primary-container{% else %}text-on-surface-variant hover:text-primary{% endif %} rounded-xl p-2 active:scale-90 transition-transform" href="{% url 'tasks' %}">
+            <span class="material-symbols-outlined">task_alt</span>
+            <span class="font-label-sm text-label-sm mt-1">Tasks</span>
+        </a>
+        <a class="flex flex-col items-center justify-center {% if current_tab == 'analytics' %}bg-primary-container text-on-primary-container{% else %}text-on-surface-variant hover:text-primary{% endif %} rounded-xl p-2 active:scale-90 transition-transform" href="{% url 'analytics' %}">
+            <span class="material-symbols-outlined">leaderboard</span>
+            <span class="font-label-sm text-label-sm mt-1">Stats</span>
+        </a>
+        <a class="flex flex-col items-center justify-center {% if current_tab == 'settings' %}bg-primary-container text-on-primary-container{% else %}text-on-surface-variant hover:text-primary{% endif %} rounded-xl p-2 active:scale-90 transition-transform" href="{% url 'settings' %}">
+            <span class="material-symbols-outlined">settings</span>
+            <span class="font-label-sm text-label-sm mt-1">Settings</span>
+        </a>
+    </nav>
+    <!-- Add/Edit Task Modal -->
+    <div id="task-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm hidden">
+        <div class="glass-panel w-full max-w-md p-lg rounded-xl border border-outline-variant/30 text-on-surface shadow-2xl relative mx-4">
+            <!-- Modal Header -->
+            <div class="flex justify-between items-center mb-md">
+                <h3 id="modal-title" class="font-title-md text-title-md font-semibold text-primary">Add Task</h3>
+                <button type="button" id="close-modal-btn" class="text-on-surface-variant hover:text-on-surface transition-colors">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <!-- Modal Form -->
+            <form id="task-modal-form" method="POST">
+                {% csrf_token %}
+                <input type="hidden" id="modal-task-id" name="task_id">
+                <input type="hidden" id="modal-action" name="action" value="create">
+                
+                <!-- Title -->
+                <div class="mb-md">
+                    <label class="block font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-xs" for="task-title-input">Task Title</label>
+                    <input type="text" id="task-title-input" name="title" required class="w-full bg-surface-container border border-outline-variant/50 rounded-lg p-sm text-on-surface font-body-md focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-outline/50" placeholder="What needs to be done?">
+                </div>
+                
+                <!-- Category & Priority -->
+                <div class="grid grid-cols-2 gap-md mb-md">
+                    <div>
+                        <label class="block font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-xs" for="task-category-input">Category</label>
+                        <select id="task-category-input" name="category_id" class="w-full bg-surface-container border border-outline-variant/50 rounded-lg p-sm text-on-surface font-body-md focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all">
+                            <option value="">None</option>
+                            {% for cat in categories %}
+                                <option value="{{ cat.id }}">{{ cat.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-xs" for="task-priority-input">Priority</label>
+                        <select id="task-priority-input" name="priority" class="w-full bg-surface-container border border-outline-variant/50 rounded-lg p-sm text-on-surface font-body-md focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all">
+                            <option value="HIGH">High</option>
+                            <option value="MEDIUM" selected>Medium</option>
+                            <option value="LOW">Low</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Deadline selection tabs -->
+                <div class="mb-md">
+                    <label class="block font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-xs">Set Deadline By</label>
+                    <div class="flex bg-surface-container rounded-lg p-1 border border-outline-variant/30 mb-sm">
+                        <button type="button" id="tab-duration" class="flex-1 py-1.5 rounded bg-surface-variant text-primary font-body-md transition-all text-xs font-semibold">
+                            Time Remaining
+                        </button>
+                        <button type="button" id="tab-date" class="flex-1 py-1.5 rounded text-on-surface-variant hover:text-on-surface font-body-md transition-all text-xs font-semibold">
+                            Specific Date/Time
+                        </button>
+                    </div>
+                    
+                    <!-- Time Remaining inputs -->
+                    <div id="section-duration" class="grid grid-cols-2 gap-sm">
+                        <input type="number" id="task-duration-val" name="duration_value" min="1" placeholder="e.g. 2" class="w-full bg-surface-container border border-outline-variant/50 rounded-lg p-sm text-on-surface font-body-md focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all placeholder:text-outline/50">
+                        <select id="task-duration-unit" name="duration_unit" class="w-full bg-surface-container border border-outline-variant/50 rounded-lg p-sm text-on-surface font-body-md focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all">
+                            <option value="minutes">Minutes</option>
+                            <option value="hours" selected>Hours</option>
+                            <option value="days">Days</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Specific Date/Time inputs -->
+                    <div id="section-date" class="hidden">
+                        <input type="datetime-local" id="task-due-date" name="due_date" class="w-full bg-surface-container border border-outline-variant/50 rounded-lg p-sm text-on-surface font-body-md focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all">
+                    </div>
+                </div>
+                
+                <!-- Form actions -->
+                <div class="flex justify-between items-center mt-lg pt-md border-t border-outline-variant/30">
+                    <button type="button" id="delete-task-btn" class="px-md py-2 bg-error/10 hover:bg-error/20 text-error border border-error/30 rounded-lg font-body-md transition-colors hidden">
+                        Delete
+                    </button>
+                    <div class="flex gap-sm ml-auto">
+                        <button type="button" id="cancel-task-btn" class="px-md py-2 hover:bg-surface-container-high text-on-surface-variant rounded-lg font-body-md transition-colors">
+                            Cancel
+                        </button>
+                        <button type="submit" class="px-md py-2 bg-primary-container hover:opacity-90 text-on-primary-container rounded-lg font-body-md transition-all shadow-[0_0_10px_rgba(160,120,255,0.2)] font-semibold">
+                            Save Task
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Beautiful Custom Confirmation Modal -->
+    <div id="confirm-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm hidden transition-all duration-300">
+        <div class="glass-panel w-full max-w-sm p-lg rounded-2xl border border-outline-variant/30 text-on-surface shadow-2xl relative mx-4 transform scale-95 opacity-0 transition-all duration-300" id="confirm-modal-content">
+            <!-- Modal Header -->
+            <div class="flex items-center gap-sm text-error mb-sm">
+                <span class="material-symbols-outlined text-2xl">warning</span>
+                <h3 class="font-title-md text-title-md font-semibold">Confirm Deletion</h3>
+            </div>
+            <!-- Modal Body -->
+            <div class="mb-md">
+                <p id="confirm-modal-message" class="font-body-md text-on-surface-variant">Do you want to delete or not?</p>
+            </div>
+            <!-- Modal Footer -->
+            <div class="flex justify-end gap-sm pt-sm border-t border-outline-variant/20">
+                <button type="button" id="confirm-modal-cancel-btn" class="px-md py-2 hover:bg-surface-container-high text-on-surface-variant rounded-lg font-body-md transition-colors">
+                    No
+                </button>
+                <button type="button" id="confirm-modal-ok-btn" class="px-md py-2 bg-error text-on-error hover:bg-error/80 rounded-lg font-body-md transition-all shadow-[0_0_10px_rgba(255,84,81,0.2)] font-semibold">
+                    Yes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed top-6 right-6 z-[100] flex flex-col gap-3 pointer-events-none" style="max-width: 380px;"></div>
+    <script>
+        window.showToast = function(message, type) {
+            type = type || 'info';
+            const container = document.getElementById('toast-container');
+            if (!container) return;
+
+            const iconMap = {
+                success: 'check_circle',
+                info: 'auto_awesome',
+                warning: 'warning'
+            };
+            const colorMap = {
+                success: { border: 'border-green-500/40', icon: 'text-green-400', bar: 'bg-green-400' },
+                info: { border: 'border-primary/40', icon: 'text-primary', bar: 'bg-primary' },
+                warning: { border: 'border-amber-500/40', icon: 'text-amber-400', bar: 'bg-amber-400' }
+            };
+            const colors = colorMap[type] || colorMap.info;
+            const icon = iconMap[type] || 'info';
+
+            const toast = document.createElement('div');
+            toast.className = `pointer-events-auto bg-surface-container-highest/95 backdrop-blur-xl ${colors.border} border rounded-xl shadow-2xl overflow-hidden transform translate-x-[120%] transition-transform duration-400 ease-out`;
+            toast.innerHTML = `
+                <div class="flex items-start gap-3 p-4">
+                    <span class="material-symbols-outlined ${colors.icon} text-xl flex-shrink-0 mt-0.5">${icon}</span>
+                    <div class="flex-1 min-w-0">
+                        <p class="font-body-md text-on-surface text-sm leading-relaxed">${message}</p>
+                    </div>
+                    <button class="toast-close text-outline hover:text-on-surface transition-colors flex-shrink-0 mt-0.5">
+                        <span class="material-symbols-outlined text-[18px]">close</span>
+                    </button>
+                </div>
+                <div class="h-[3px] w-full bg-surface-container-low">
+                    <div class="toast-progress h-full ${colors.bar} transition-all ease-linear" style="width: 100%;"></div>
+                </div>
+            `;
+            container.appendChild(toast);
+
+            // Slide in
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    toast.classList.remove('translate-x-[120%]');
+                    toast.classList.add('translate-x-0');
+                });
+            });
+
+            // Progress bar countdown
+            const bar = toast.querySelector('.toast-progress');
+            const duration = 4000;
+            bar.style.transition = `width ${duration}ms linear`;
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    bar.style.width = '0%';
+                });
+            });
+
+            // Close button
+            toast.querySelector('.toast-close').addEventListener('click', () => dismissToast(toast));
+
+            // Auto dismiss
+            setTimeout(() => dismissToast(toast), duration);
+
+            function dismissToast(el) {
+                el.classList.remove('translate-x-0');
+                el.classList.add('translate-x-[120%]');
+                setTimeout(() => el.remove(), 400);
+            }
+        };
+    </script>
+
+    <!-- Modal script controller -->
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const taskModal = document.getElementById('task-modal');
+            const modalTitle = document.getElementById('modal-title');
+            const taskModalForm = document.getElementById('task-modal-form');
+            const modalTaskId = document.getElementById('modal-task-id');
+            const modalAction = document.getElementById('modal-action');
+            const taskTitleInput = document.getElementById('task-title-input');
+            const taskCategoryInput = document.getElementById('task-category-input');
+            const taskPriorityInput = document.getElementById('task-priority-input');
+            const tabDuration = document.getElementById('tab-duration');
+            const tabDate = document.getElementById('tab-date');
+            const sectionDuration = document.getElementById('section-duration');
+            const sectionDate = document.getElementById('section-date');
+            const taskDurationVal = document.getElementById('task-duration-val');
+            const taskDurationUnit = document.getElementById('task-duration-unit');
+            const taskDueDate = document.getElementById('task-due-date');
+            const deleteTaskBtn = document.getElementById('delete-task-btn');
+            const cancelTaskBtn = document.getElementById('cancel-task-btn');
+            const closeModalBtn = document.getElementById('close-modal-btn');
+
+            function getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            }
+
+            function getCsrfToken() {
+                const tokenInput = document.querySelector('[name=csrfmiddlewaretoken]');
+                if (tokenInput) return tokenInput.value;
+                return getCookie('csrftoken');
+            }
+
+            function openCreateModal() {
+                modalTitle.textContent = "Add Task";
+                modalTaskId.value = "";
+                modalAction.value = "create";
+                taskTitleInput.value = "";
+                taskCategoryInput.value = "";
+                taskPriorityInput.value = "MEDIUM";
+                
+                selectTab('duration');
+                taskDurationVal.value = "";
+                taskDurationUnit.value = "hours";
+                taskDueDate.value = "";
+                
+                deleteTaskBtn.classList.add('hidden');
+                taskModal.classList.remove('hidden');
+            }
+
+            function openEditModal(taskId, title, priority, categoryId, dueDate) {
+                modalTitle.textContent = "Edit Task";
+                modalTaskId.value = taskId;
+                modalAction.value = "update";
+                taskTitleInput.value = title || "";
+                taskPriorityInput.value = priority || "MEDIUM";
+                taskCategoryInput.value = categoryId || "";
+                
+                taskDurationVal.value = "";
+                taskDueDate.value = dueDate || "";
+                
+                if (dueDate) {
+                    selectTab('date');
+                } else {
+                    selectTab('duration');
+                }
+                
+                deleteTaskBtn.classList.remove('hidden');
+                taskModal.classList.remove('hidden');
+            }
+
+            function selectTab(type) {
+                if (type === 'duration') {
+                    tabDuration.classList.add('bg-surface-variant', 'text-primary');
+                    tabDuration.classList.remove('text-on-surface-variant', 'hover:text-on-surface');
+                    tabDate.classList.remove('bg-surface-variant', 'text-primary');
+                    tabDate.classList.add('text-on-surface-variant', 'hover:text-on-surface');
+                    
+                    sectionDuration.classList.remove('hidden');
+                    sectionDate.classList.add('hidden');
+                } else {
+                    tabDate.classList.add('bg-surface-variant', 'text-primary');
+                    tabDate.classList.remove('text-on-surface-variant', 'hover:text-on-surface');
+                    tabDuration.classList.remove('bg-surface-variant', 'text-primary');
+                    tabDuration.classList.add('text-on-surface-variant', 'hover:text-on-surface');
+                    
+                    sectionDate.classList.remove('hidden');
+                    sectionDuration.classList.add('hidden');
+                }
+            }
+
+            tabDuration.addEventListener('click', () => selectTab('duration'));
+            tabDate.addEventListener('click', () => selectTab('date'));
+
+            closeModalBtn.addEventListener('click', () => taskModal.classList.add('hidden'));
+            cancelTaskBtn.addEventListener('click', () => taskModal.classList.add('hidden'));
+            taskModal.addEventListener('click', (e) => {
+                if (e.target === taskModal) {
+                    taskModal.classList.add('hidden');
+                }
+            });
+
+            taskModalForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const formData = new FormData(taskModalForm);
+                
+                fetch('/tasks/', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCsrfToken()
+                    },
+                    body: formData
+                })
+                .then(res => {
+                    if (!res.ok) throw new Error('HTTP error ' + res.status);
+                    return res.json();
+                })
+                .then(data => {
+                    if (data.status === 'success') {
+                        taskModal.classList.add('hidden');
+                        window.location.reload();
+                    } else {
+                        window.showToast('Error: ' + data.message, 'warning');
+                    }
+                })
+                .catch(err => {
+                    console.error(err);
+                    window.showToast('Request failed: ' + err.message, 'warning');
+                });
+            });
+
+            // Custom Confirmation Modal Helper
+            const confirmModal = document.getElementById('confirm-modal');
+            const confirmModalContent = document.getElementById('confirm-modal-content');
+            const confirmModalMsg = document.getElementById('confirm-modal-message');
+            const confirmModalOkBtn = document.getElementById('confirm-modal-ok-btn');
+            const confirmModalCancelBtn = document.getElementById('confirm-modal-cancel-btn');
+
+            let currentConfirmCallback = null;
+
+            window.showConfirmModal = function(message, onConfirm) {
+                confirmModalMsg.textContent = message || "Do you want to delete or not?";
+                currentConfirmCallback = onConfirm;
+                
+                // Show modal with animation
+                confirmModal.classList.remove('hidden');
+                setTimeout(() => {
+                    confirmModalContent.classList.remove('scale-95', 'opacity-0');
+                    confirmModalContent.classList.add('scale-100', 'opacity-100');
+                }, 10);
+            };
+
+            function closeConfirmModal() {
+                confirmModalContent.classList.remove('scale-100', 'opacity-100');
+                confirmModalContent.classList.add('scale-95', 'opacity-0');
+                setTimeout(() => {
+                    confirmModal.classList.add('hidden');
+                }, 300);
+            }
+
+            confirmModalOkBtn.addEventListener('click', () => {
+                closeConfirmModal();
+                if (currentConfirmCallback) {
+                    currentConfirmCallback();
+                }
+            });
+
+            confirmModalCancelBtn.addEventListener('click', closeConfirmModal);
+            confirmModal.addEventListener('click', (e) => {
+                if (e.target === confirmModal) {
+                    closeConfirmModal();
+                }
+            });
+
+            deleteTaskBtn.addEventListener('click', () => {
+                window.showConfirmModal('Do you want to delete or not?', () => {
+                    const taskId = modalTaskId.value;
+                    const formData = new FormData();
+                    formData.append('action', 'delete');
+                    formData.append('task_id', taskId);
+                    
+                    fetch('/tasks/', {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': getCsrfToken()
+                        },
+                        body: formData
+                    })
+                    .then(res => {
+                        if (!res.ok) throw new Error('HTTP error ' + res.status);
+                        return res.json();
+                    })
+                    .then(data => {
+                        if (data.status === 'success') {
+                            taskModal.classList.add('hidden');
+                            window.location.reload();
+                        } else {
+                            window.showToast('Error: ' + data.message, 'warning');
+                        }
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        window.showToast('Request failed: ' + err.message, 'warning');
+                    });
+                });
+            });
+
+            // Delegate document listener
+            document.addEventListener('click', (e) => {
+                const trigger = e.target.closest('.edit-task-trigger');
+                if (trigger) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    let taskId = trigger.getAttribute('data-task-id');
+                    let title = trigger.getAttribute('data-title');
+                    let priority = trigger.getAttribute('data-priority');
+                    let categoryId = trigger.getAttribute('data-category-id');
+                    let dueDate = trigger.getAttribute('data-due-date');
+                    
+                    if (!taskId) {
+                        const container = trigger.closest('[data-id]') || trigger.closest('[data-task-id]');
+                        if (container) {
+                            taskId = container.getAttribute('data-id') || container.getAttribute('data-task-id');
+                            title = container.getAttribute('data-title') || container.querySelector('.task-title')?.textContent.trim() || container.querySelector('.task-row-title')?.textContent.trim();
+                            priority = container.getAttribute('data-priority');
+                            categoryId = container.getAttribute('data-category-id');
+                            dueDate = container.getAttribute('data-due-date');
+                        }
+                    }
+                    
+                    if (taskId) {
+                        openEditModal(taskId, title, priority, categoryId, dueDate);
+                    }
+                }
+            });
+
+            window.openCreateTaskModal = openCreateModal;
+        });
+    </script>
+</div>
+{% endblock %}

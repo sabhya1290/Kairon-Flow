@@ -1,0 +1,781 @@
+{% extends 'productivity/app_layout.html' %}
+{% load task_filters %}
+
+{% block title %}Kairon Flow - Dashboard{% endblock %}
+
+{% block main_content %}
+{% csrf_token %}
+<!-- Center Chat Workspace (Panel 2) -->
+<section class="flex-1 flex flex-col min-w-0 bg-background relative border-r border-outline-variant/50 lg:border-outline-variant">
+    <!-- Chat Logs -->
+    <div id="chat-logs" class="flex-1 overflow-y-auto p-lg hide-scroll flex flex-col gap-lg pb-32">
+        {% for message in chat_messages %}
+            {% if message.role == 'AI' %}
+                <!-- AI Welcome Message -->
+                <div class="flex gap-md max-w-3xl msg-container fade-in" data-msg-id="{{ message.id }}">
+                    <div class="w-8 h-8 rounded-full bg-surface-container-high flex items-center justify-center border border-primary/30 shadow-[0_0_8px_rgba(160,120,255,0.3)] flex-shrink-0">
+                        <span class="material-symbols-outlined text-primary text-sm">auto_awesome</span>
+                    </div>
+                    <div class="flex-1 space-y-sm text-on-surface font-body-lg text-body-lg">
+                        <div class="prose text-on-surface-variant max-w-none">
+                            {{ message.content|linebreaksbr }}
+                        </div>
+                        
+                        {% if message.structured_data %}
+                            {% if message.structured_data.type == 'table' %}
+                                <div class="bg-surface-container p-md rounded-lg border border-outline-variant/30 font-label-sm text-label-sm font-mono overflow-x-auto my-md">
+                                    <table class="w-full text-left border-collapse">
+                                        <thead>
+                                            <tr class="border-b border-outline-variant/50 text-on-surface-variant">
+                                                {% for header in message.structured_data.headers %}
+                                                    <th class="pb-sm pr-md font-medium">{{ header }}</th>
+                                                {% endfor %}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for row in message.structured_data.rows %}
+                                                <tr class="border-b border-outline-variant/20">
+                                                    <td class="py-sm pr-md text-primary-fixed-dim">{{ row.section }}</td>
+                                                    <td class="py-sm pr-md text-on-surface">{{ row.owner }}</td>
+                                                    <td class="py-sm">
+                                                        <span class="px-2 py-1 rounded-full 
+                                                            {% if row.status_color == 'error' %}bg-error-container text-on-error-container border border-error/50
+                                                            {% elif row.status_color == 'outline' %}bg-surface-container-high text-xs border border-outline-variant
+                                                            {% else %}bg-surface-container-highest text-on-surface-variant border border-outline-variant{% endif %} text-xs">
+                                                            {{ row.status }}
+                                                        </span>
+                                                    </td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% endif %}
+                            
+                            {% if message.structured_data.alert %}
+                                <div class="flex items-center gap-sm bg-surface-container-low p-sm rounded-lg border border-outline-variant w-fit mt-sm">
+                                    <span class="material-symbols-outlined text-primary text-sm">check_circle</span>
+                                    <span class="text-on-surface-variant text-sm">{{ message.structured_data.alert }}</span>
+                                </div>
+                            {% endif %}
+                            
+                            {% if message.structured_data.type == 'task_created' %}
+                                <div class="bg-surface-container p-md rounded-lg border border-outline-variant/30 font-body-md text-sm space-y-md my-md w-full max-w-sm">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-on-surface-variant font-medium text-xs font-semibold uppercase tracking-wider">Quick Adjust Task Priority</span>
+                                        <span class="text-xs text-outline">#{{ message.structured_data.task_id }}</span>
+                                    </div>
+                                    
+                                    <!-- Priority Pills -->
+                                    <div class="space-y-xs">
+                                        <div class="flex gap-sm">
+                                            <button type="button" class="flex-1 py-1.5 rounded text-xs font-semibold border text-center transition-all chat-priority-btn bg-surface-container-high text-on-surface-variant border-outline-variant/50 hover:text-on-surface" data-task-id="{{ message.structured_data.task_id }}" data-priority="HIGH">High</button>
+                                            <button type="button" class="flex-1 py-1.5 rounded text-xs font-semibold border text-center transition-all chat-priority-btn bg-surface-container-high text-on-surface-variant border-outline-variant/50 hover:text-on-surface" data-task-id="{{ message.structured_data.task_id }}" data-priority="MEDIUM">Medium</button>
+                                            <button type="button" class="flex-1 py-1.5 rounded text-xs font-semibold border text-center transition-all chat-priority-btn bg-surface-container-high text-on-surface-variant border-outline-variant/50 hover:text-on-surface" data-task-id="{{ message.structured_data.task_id }}" data-priority="LOW">Low</button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Time Limit Pills -->
+                                    <div class="space-y-xs">
+                                        <span class="text-xs text-on-surface-variant font-label-sm uppercase tracking-wider block font-semibold">Set Time Limit</span>
+                                        <div class="grid grid-cols-4 gap-xs">
+                                            <button type="button" class="py-1.5 rounded text-xs font-semibold border text-center transition-all chat-duration-btn bg-surface-container-high text-on-surface-variant border-outline-variant/50 hover:text-on-surface" data-task-id="{{ message.structured_data.task_id }}" data-val="30" data-unit="minutes">30m</button>
+                                            <button type="button" class="py-1.5 rounded text-xs font-semibold border text-center transition-all chat-duration-btn bg-surface-container-high text-on-surface-variant border-outline-variant/50 hover:text-on-surface" data-task-id="{{ message.structured_data.task_id }}" data-val="2" data-unit="hours">2h</button>
+                                            <button type="button" class="py-1.5 rounded text-xs font-semibold border text-center transition-all chat-duration-btn bg-surface-container-high text-on-surface-variant border-outline-variant/50 hover:text-on-surface" data-task-id="{{ message.structured_data.task_id }}" data-val="4" data-unit="hours">4h</button>
+                                            <button type="button" class="py-1.5 rounded text-xs font-semibold border text-center transition-all chat-duration-btn bg-surface-container-high text-on-surface-variant border-outline-variant/50 hover:text-on-surface" data-task-id="{{ message.structured_data.task_id }}" data-val="1" data-unit="days">1d</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+            {% else %}
+                <!-- User Message -->
+                <div class="flex gap-md max-w-3xl self-end flex-row-reverse msg-container fade-in">
+                    <img alt="User profile" class="w-8 h-8 rounded-full object-cover border border-outline-variant flex-shrink-0" src="{{ profile.avatar_url }}">
+                    <div class="bg-surface-container-high text-on-surface p-md rounded-2xl rounded-tr-sm border border-outline-variant/50 max-w-[85%]">
+                        <p class="font-body-md text-body-md">{{ message.content }}</p>
+                    </div>
+                </div>
+            {% endif %}
+        {% endfor %}
+    </div>
+
+    <!-- Floating Input Area -->
+    <div class="absolute bottom-lg left-lg right-lg lg:left-xl lg:right-xl">
+        <form id="chat-form" class="bg-surface-container-high/90 backdrop-blur-xl border border-outline-variant rounded-full p-sm flex items-center gap-sm shadow-xl focus-within:border-primary/50 focus-within:shadow-[0_0_15px_rgba(160,120,255,0.15)] transition-all">
+            <button type="button" class="p-2 text-on-surface-variant hover:text-primary transition-colors rounded-full hover:bg-surface-container-highest">
+                <span class="material-symbols-outlined">attach_file</span>
+            </button>
+            <input id="chat-input" class="flex-1 bg-transparent border-none focus:ring-0 text-on-surface placeholder:text-on-surface-variant/50 font-body-md text-body-md px-2 outline-none" placeholder="Assign a task, schedule a meeting, or update a habit..." type="text" autocomplete="off" required>
+            <button type="button" id="clear-btn" class="p-2 text-on-surface-variant hover:text-error transition-colors rounded-full hover:bg-surface-container-highest" title="Clear History">
+                <span class="material-symbols-outlined">delete</span>
+            </button>
+            <button type="submit" class="w-10 h-10 rounded-full bg-primary-container text-on-primary-container flex items-center justify-center hover:bg-primary transition-colors shadow-md">
+                <span class="material-symbols-outlined">arrow_upward</span>
+            </button>
+        </form>
+    </div>
+</section>
+
+<!-- Right Dynamic Context (Panel 3) -->
+<aside class="hidden lg:flex w-80 flex-col bg-surface-container-lowest border-l border-outline-variant overflow-y-auto hide-scroll flex-shrink-0">
+    <div class="p-lg border-b border-outline-variant/50 sticky top-0 bg-surface-container-lowest/90 backdrop-blur-md z-10">
+        <h2 class="font-title-md text-title-md font-semibold text-on-surface">Today's Agenda</h2>
+        <p class="font-label-sm text-label-sm text-primary mt-xs uppercase tracking-wider" id="current-date">JUN 25, 2026</p>
+    </div>
+    
+    <div class="p-lg space-y-xl">
+        <!-- Daily Timeline -->
+        <section>
+            <h3 class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-widest mb-md">Timeline</h3>
+            <div class="relative border-l-2 border-surface-container-high ml-sm pl-md space-y-md">
+                {% for item in timeline %}
+                    <div class="relative">
+                        {% if item.active %}
+                            <div class="absolute -left-[23px] top-1 w-3 h-3 rounded-full bg-primary-container shadow-[0_0_8px_rgba(160,120,255,0.5)]"></div>
+                        {% else %}
+                            <div class="absolute -left-[23px] top-1 w-3 h-3 rounded-full bg-surface-container-highest border-2 border-outline-variant"></div>
+                        {% endif %}
+                        
+                        <p class="font-label-sm text-label-sm {% if item.active %}text-primary font-bold{% else %}text-on-surface-variant{% endif %} mb-1">
+                            {{ item.time }}
+                        </p>
+                        
+                        <div class="{% if item.active %}bg-surface-container-highest border-primary/30{% else %}bg-surface-container-low border-outline-variant/30{% endif %} p-sm rounded-md border">
+                            <p class="font-body-md text-body-md text-on-surface {% if item.completed %}opacity-50 line-through{% endif %} {% if item.active %}font-medium{% endif %}">
+                                {{ item.title }}
+                            </p>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </section>
+
+        <!-- Active Tasks -->
+        <section>
+            <div class="flex items-center justify-between mb-md">
+                <h3 class="font-label-sm text-label-sm text-on-surface-variant uppercase tracking-widest">Priority Tasks</h3>
+                <div class="flex items-center gap-sm">
+                    <span onclick="window.openCreateTaskModal()" class="material-symbols-outlined text-on-surface-variant text-md cursor-pointer hover:text-primary transition-colors" title="Add Task Manually" style="font-size: 18px;">add</span>
+                    <div class="relative" id="dash-filter-container">
+                        <span id="dash-filter-btn" class="material-symbols-outlined text-on-surface-variant text-sm cursor-pointer hover:text-primary transition-colors" title="Filter Tasks">filter_list</span>
+                        <div id="dash-filter-menu" class="hidden absolute right-0 mt-2 w-48 origin-top-right rounded-xl bg-surface-container-highest border border-outline-variant/50 shadow-2xl p-3 space-y-2 z-50 backdrop-blur-md">
+                            <div class="flex justify-between items-center pb-2 border-b border-outline-variant/30">
+                                <span class="font-title-sm text-xs font-semibold text-primary">Filter Priority</span>
+                                <button id="dash-filter-clear" class="text-[10px] text-on-surface-variant hover:text-primary transition-colors">Clear</button>
+                            </div>
+                            <select id="dash-filter-priority" class="w-full bg-surface-container border border-outline-variant/50 rounded-lg p-sm text-on-surface text-xs focus:outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/50">
+                                <option value="ALL" class="bg-surface-container-highest">All Priorities</option>
+                                <option value="HIGH" class="bg-surface-container-highest">High</option>
+                                <option value="MEDIUM" class="bg-surface-container-highest">Medium</option>
+                                <option value="LOW" class="bg-surface-container-highest">Low</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="space-y-sm" id="priority-tasks-container">
+                {% for task in priority_tasks %}
+                    <div class="group flex items-start gap-sm p-md rounded-lg border transition-colors relative overflow-hidden dash-task-item
+                        {% if task.priority == 'HIGH' %}bg-surface-container border-error/20 hover:border-error/50
+                        {% elif task.priority == 'MEDIUM' %}bg-surface-container-low border-outline-variant/30 hover:bg-surface-container
+                        {% else %}bg-transparent border-outline-variant/20 hover:bg-surface-container-lowest{% endif %}"
+                        data-task-id="{{ task.id }}" data-title="{{ task.title }}" data-priority="{{ task.priority }}"
+                        data-category-id="{{ task.category.id|default:'' }}" data-due-date="{% if task.due_date %}{{ task.due_date|date:'Y-m-d' }}T{{ task.due_date|date:'H:i' }}{% endif %}">
+                        
+                        {% if task.priority == 'HIGH' %}
+                            <div class="absolute left-0 top-0 bottom-0 w-1 bg-error"></div>
+                        {% endif %}
+                        
+                        <input class="mt-1 rounded bg-surface border-outline-variant text-primary focus:ring-primary focus:ring-offset-background cursor-pointer task-checkbox" 
+                               type="checkbox" {% if task.completed %}checked{% endif %}
+                               data-url="{% url 'tasks' %}" data-task-id="{{ task.id }}">
+                        
+                        <div class="flex-1 pr-4">
+                            <div class="flex justify-between items-start mb-1 gap-sm">
+                                <p class="font-body-md text-body-md text-on-surface font-medium leading-tight group-hover:text-primary transition-colors task-title {% if task.completed %}line-through opacity-50{% endif %}">
+                                    {{ task.title }}
+                                </p>
+                                {% if task.priority == 'HIGH' %}
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-error-container/20 text-error border border-error/30 uppercase flex-shrink-0">High</span>
+                                {% elif task.priority == 'MEDIUM' %}
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-medium bg-surface-container-high text-on-surface-variant border border-outline-variant flex-shrink-0">AI: {{ task.ai_score }}</span>
+                                {% endif %}
+                            </div>
+                            <p class="font-label-sm text-label-sm text-on-surface-variant flex items-center gap-1">
+                                <span class="material-symbols-outlined text-[14px]">schedule</span> 
+                                {% if task.due_date %}
+                                    ⏱ {{ task.due_date|time_remaining }}
+                                {% else %}
+                                    No deadline
+                                {% endif %}
+                            </p>
+                        </div>
+                        
+                        <div class="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity absolute right-2 bottom-2">
+                            <button class="text-outline hover:text-on-surface edit-task-trigger" 
+                                    data-task-id="{{ task.id }}" data-title="{{ task.title }}" data-priority="{{ task.priority }}"
+                                    data-category-id="{{ task.category.id|default:'' }}" data-due-date="{% if task.due_date %}{{ task.due_date|date:'Y-m-d' }}T{{ task.due_date|date:'H:i' }}{% endif %}">
+                                <span class="material-symbols-outlined text-[16px]">edit</span>
+                            </button>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </section>
+    </div>
+</aside>
+
+<!-- Javascript for Interactive Chat Box and Checkboxes -->
+<script>
+    // Set current date
+    const dateElement = document.getElementById('current-date');
+    if(dateElement) {
+        const options = { month: 'short', day: 'numeric', year: 'numeric' };
+        dateElement.textContent = new Date().toLocaleDateString('en-US', options).toUpperCase();
+    }
+
+    // Scroll Chat to Bottom
+    const chatLogs = document.getElementById('chat-logs');
+    function scrollToBottom() {
+        chatLogs.scrollTop = chatLogs.scrollHeight;
+    }
+    scrollToBottom();
+
+    // CSRF Token Helper
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    // Handle AJAX Task Checkboxes
+    document.addEventListener('change', function(e) {
+        if(e.target.classList.contains('task-checkbox')) {
+            const taskId = e.target.getAttribute('data-task-id');
+            const targetUrl = e.target.getAttribute('data-url');
+            const parentRow = e.target.closest('[data-task-id]');
+            const titleEl = parentRow.querySelector('.task-title');
+            
+            const formData = new FormData();
+            formData.append('task_id', taskId);
+            
+            fetch(targetUrl, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                },
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    if (data.completed) {
+                        titleEl.classList.add('line-through', 'opacity-50');
+                    } else {
+                        titleEl.classList.remove('line-through', 'opacity-50');
+                    }
+                }
+            })
+            .catch(err => console.error(err));
+        }
+    });
+
+    // Chat Form Submit
+    const chatForm = document.getElementById('chat-form');
+    const chatInput = document.getElementById('chat-input');
+    
+    chatForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const text = chatInput.value.trim();
+        if(!text) return;
+
+        // Render user message immediately
+        const userMsgHtml = `
+            <div class="flex gap-md max-w-3xl self-end flex-row-reverse msg-container fade-in">
+                <img alt="User profile" class="w-8 h-8 rounded-full object-cover border border-outline-variant flex-shrink-0" src="{{ profile.avatar_url }}">
+                <div class="bg-surface-container-high text-on-surface p-md rounded-2xl rounded-tr-sm border border-outline-variant/50 max-w-[85%]">
+                    <p class="font-body-md text-body-md">${escapeHTML(text)}</p>
+                </div>
+            </div>
+        `;
+        chatLogs.insertAdjacentHTML('beforeend', userMsgHtml);
+        scrollToBottom();
+        chatInput.value = '';
+
+        // API Call
+        fetch('/api/chat/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({ content: text })
+        })
+        .then(res => {
+            if (!res.ok) throw new Error('HTTP error ' + res.status);
+            return res.json();
+        })
+        .then(data => {
+            // Fetch updated log list and render
+            fetchChatLogs();
+        })
+        .catch(err => console.error(err));
+    });
+
+    // Clear History Submit
+    const clearBtn = document.getElementById('clear-btn');
+    clearBtn.addEventListener('click', function() {
+        window.showConfirmModal('Do you want to delete or not?', () => {
+            fetch('/api/chat/clear/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCsrfToken()
+                }
+            })
+            .then(res => {
+                if (!res.ok) throw new Error('HTTP error ' + res.status);
+                return res.json();
+            })
+            .then(data => {
+                fetchChatLogs();
+            })
+            .catch(err => console.error(err));
+        });
+    });
+
+    function escapeHTML(str) {
+        return str.replace(/[&<>'"]/g, 
+            tag => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                "'": '&#39;',
+                '"': '&quot;'
+            }[tag] || tag)
+        );
+    }
+
+    function fetchChatLogs() {
+        fetch('/api/chat/')
+        .then(res => res.json())
+        .then(messages => {
+            chatLogs.innerHTML = '';
+            messages.forEach(msg => {
+                let html = '';
+                if(msg.role === 'AI') {
+                    let tableHtml = '';
+                    let alertHtml = '';
+                    
+                    if(msg.structured_data) {
+                        if(msg.structured_data.type === 'table') {
+                            let rows = '';
+                            msg.structured_data.rows.forEach(row => {
+                                let badgeColor = 'bg-surface-container-highest text-on-surface-variant border border-outline-variant';
+                                if(row.status_color === 'error') {
+                                    badgeColor = 'bg-error-container text-on-error-container border border-error/50';
+                                } else if(row.status_color === 'outline') {
+                                    badgeColor = 'bg-surface-container-high text-xs border border-outline-variant';
+                                }
+                                rows += `
+                                    <tr class="border-b border-outline-variant/20">
+                                        <td class="py-sm pr-md text-primary-fixed-dim">${row.section}</td>
+                                        <td class="py-sm pr-md text-on-surface">${row.owner}</td>
+                                        <td class="py-sm">
+                                            <span class="px-2 py-1 rounded-full ${badgeColor} text-xs">
+                                                ${row.status}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                `;
+                            });
+                            
+                            let headers = '';
+                            msg.structured_data.headers.forEach(h => {
+                                headers += `<th class="pb-sm pr-md font-medium">${h}</th>`;
+                            });
+
+                            tableHtml = `
+                                <div class="bg-surface-container p-md rounded-lg border border-outline-variant/30 font-label-sm text-label-sm font-mono overflow-x-auto my-md">
+                                    <table class="w-full text-left border-collapse">
+                                        <thead>
+                                            <tr class="border-b border-outline-variant/50 text-on-surface-variant">
+                                                ${headers}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            ${rows}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            `;
+                        }
+
+                        if(msg.structured_data.alert) {
+                            alertHtml = `
+                                <div class="flex items-center gap-sm bg-surface-container-low p-sm rounded-lg border border-outline-variant w-fit mt-sm">
+                                    <span class="material-symbols-outlined text-primary text-sm">check_circle</span>
+                                    <span class="text-on-surface-variant text-sm">${msg.structured_data.alert}</span>
+                                </div>
+                            `;
+                        }
+                        
+                        if(msg.structured_data.type === 'task_created') {
+                            const taskId = msg.structured_data.task_id;
+                            const priority = msg.structured_data.priority;
+                            
+                            const highClass = priority === 'HIGH' ? 'bg-primary-container/20 text-primary border-primary/50' : 'bg-surface-container-high text-on-surface-variant border-outline-variant/50 hover:text-on-surface';
+                            const medClass = priority === 'MEDIUM' ? 'bg-primary-container/20 text-primary border-primary/50' : 'bg-surface-container-high text-on-surface-variant border-outline-variant/50 hover:text-on-surface';
+                            const lowClass = priority === 'LOW' ? 'bg-primary-container/20 text-primary border-primary/50' : 'bg-surface-container-high text-on-surface-variant border-outline-variant/50 hover:text-on-surface';
+                            
+                            alertHtml = `
+                                <div class="bg-surface-container p-md rounded-lg border border-outline-variant/30 font-body-md text-sm space-y-md my-md w-full max-w-sm">
+                                    <div class="flex items-center justify-between">
+                                        <span class="text-on-surface-variant font-medium text-xs font-semibold uppercase tracking-wider">Quick Adjust Task Priority</span>
+                                        <span class="text-xs text-outline">#${taskId}</span>
+                                    </div>
+                                    
+                                    <!-- Priority Pills -->
+                                    <div class="space-y-xs">
+                                        <div class="flex gap-sm">
+                                            <button type="button" class="flex-1 py-1.5 rounded text-xs font-semibold border text-center transition-all chat-priority-btn ${highClass}" data-task-id="${taskId}" data-priority="HIGH">High</button>
+                                            <button type="button" class="flex-1 py-1.5 rounded text-xs font-semibold border text-center transition-all chat-priority-btn ${medClass}" data-task-id="${taskId}" data-priority="MEDIUM">Medium</button>
+                                            <button type="button" class="flex-1 py-1.5 rounded text-xs font-semibold border text-center transition-all chat-priority-btn ${lowClass}" data-task-id="${taskId}" data-priority="LOW">Low</button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Time Limit Pills -->
+                                    <div class="space-y-xs">
+                                        <span class="text-xs text-on-surface-variant font-label-sm uppercase tracking-wider block font-semibold">Set Time Limit</span>
+                                        <div class="grid grid-cols-4 gap-xs">
+                                            <button type="button" class="py-1.5 rounded text-xs font-semibold border text-center transition-all chat-duration-btn bg-surface-container-high text-on-surface-variant border-outline-variant/50 hover:text-on-surface" data-task-id="${taskId}" data-val="30" data-unit="minutes">30m</button>
+                                            <button type="button" class="py-1.5 rounded text-xs font-semibold border text-center transition-all chat-duration-btn bg-surface-container-high text-on-surface-variant border-outline-variant/50 hover:text-on-surface" data-task-id="${taskId}" data-val="2" data-unit="hours">2h</button>
+                                            <button type="button" class="py-1.5 rounded text-xs font-semibold border text-center transition-all chat-duration-btn bg-surface-container-high text-on-surface-variant border-outline-variant/50 hover:text-on-surface" data-task-id="${taskId}" data-val="4" data-unit="hours">4h</button>
+                                            <button type="button" class="py-1.5 rounded text-xs font-semibold border text-center transition-all chat-duration-btn bg-surface-container-high text-on-surface-variant border-outline-variant/50 hover:text-on-surface" data-task-id="${taskId}" data-val="1" data-unit="days">1d</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                    }
+
+                    html = `
+                        <div class="flex gap-md max-w-3xl msg-container fade-in">
+                            <div class="w-8 h-8 rounded-full bg-surface-container-high flex items-center justify-center border border-primary/30 shadow-[0_0_8px_rgba(160,120,255,0.3)] flex-shrink-0">
+                                <span class="material-symbols-outlined text-primary text-sm">auto_awesome</span>
+                            </div>
+                            <div class="flex-1 space-y-sm text-on-surface font-body-lg text-body-lg">
+                                <p class="text-on-surface-variant leading-relaxed">${msg.content.replace(/\n/g, '<br>')}</p>
+                                ${tableHtml}
+                                ${alertHtml}
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    html = `
+                        <div class="flex gap-md max-w-3xl self-end flex-row-reverse msg-container fade-in">
+                            <img alt="User profile" class="w-8 h-8 rounded-full object-cover border border-outline-variant flex-shrink-0" src="{{ profile.avatar_url }}">
+                            <div class="bg-surface-container-high text-on-surface p-md rounded-2xl rounded-tr-sm border border-outline-variant/50 max-w-[85%]">
+                                <p class="font-body-md text-body-md">${escapeHTML(msg.content)}</p>
+                            </div>
+                        </div>
+                    `;
+                }
+                chatLogs.insertAdjacentHTML('beforeend', html);
+            });
+            scrollToBottom();
+            
+            // Reload side panel tasks asynchronously to show any new task assigned
+            reloadSidePanelTasks();
+            initChatInteractiveBtns();
+        })
+        .catch(err => console.error(err));
+    }
+
+    function reloadSidePanelTasks() {
+        fetch('/tasks/')
+        .then(res => res.text())
+        .then(htmlStr => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(htmlStr, 'text/html');
+            const tasksList = doc.querySelectorAll('.task-row-el');
+            
+            const container = document.getElementById('priority-tasks-container');
+            if(!container) return;
+            
+            let count = 0;
+            let output = '';
+            tasksList.forEach(row => {
+                const completed = row.getAttribute('data-completed') === 'true';
+                if(completed || count >= 4) return;
+                
+                const taskId = row.getAttribute('data-id');
+                const title = row.getAttribute('data-title');
+                const priority = row.getAttribute('data-priority');
+                const aiScore = row.getAttribute('data-ai-score');
+                const categoryId = row.getAttribute('data-category-id') || '';
+                const dueDate = row.getAttribute('data-due-date') || '';
+                
+                let priorityBadge = '';
+                let bgStyle = 'bg-transparent border-outline-variant/20 hover:bg-surface-container-lowest';
+                let indicator = '';
+                
+                if (priority === 'HIGH') {
+                    priorityBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-error-container/20 text-error border border-error/30 uppercase flex-shrink-0">High</span>`;
+                    bgStyle = 'bg-surface-container border-error/20 hover:border-error/50';
+                    indicator = `<div class="absolute left-0 top-0 bottom-0 w-1 bg-error"></div>`;
+                } else if (priority === 'MEDIUM') {
+                    priorityBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-surface-container-high text-on-surface-variant border border-outline-variant flex-shrink-0">AI: ${aiScore}</span>`;
+                    bgStyle = 'bg-surface-container-low border-outline-variant/30 hover:bg-surface-container';
+                }
+                
+                let dueDisplay = 'No deadline';
+                const dueCol = row.querySelector('div:nth-child(5)');
+                if (dueCol) {
+                    dueDisplay = dueCol.innerHTML.trim();
+                }
+                
+                output += `
+                    <div class="group flex items-start gap-sm p-md rounded-lg border transition-colors relative overflow-hidden ${bgStyle}" 
+                         data-task-id="${taskId}" data-title="${title}" data-priority="${priority}"
+                         data-category-id="${categoryId}" data-due-date="${dueDate}">
+                        ${indicator}
+                        <input class="mt-1 rounded bg-surface border-outline-variant text-primary focus:ring-primary focus:ring-offset-background cursor-pointer task-checkbox" 
+                               type="checkbox" data-url="{% url 'tasks' %}" data-task-id="${taskId}">
+                        <div class="flex-1 pr-4">
+                            <div class="flex justify-between items-start mb-1 gap-sm">
+                                <p class="font-body-md text-body-md text-on-surface font-medium leading-tight group-hover:text-primary transition-colors task-title">
+                                    ${title}
+                                </p>
+                                ${priorityBadge}
+                            </div>
+                            <div class="font-label-sm text-label-sm text-on-surface-variant flex flex-col gap-0.5">
+                                ${dueDisplay}
+                            </div>
+                        </div>
+                        <div class="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity absolute right-2 bottom-2">
+                            <button class="text-outline hover:text-on-surface edit-task-trigger" 
+                                    data-task-id="${taskId}" data-title="${title}" data-priority="${priority}"
+                                    data-category-id="${categoryId}" data-due-date="${dueDate}">
+                                <span class="material-symbols-outlined text-[16px]">edit</span>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                count++;
+            });
+            if(output) {
+                container.innerHTML = output;
+            }
+        })
+        .catch(err => console.error(err));
+    }
+
+    function getCsrfToken() {
+        const tokenInput = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (tokenInput) return tokenInput.value;
+        return getCookie('csrftoken');
+    }
+
+    // Interactive Pills functions
+    function initChatInteractiveBtns() {
+        const chatPriorityBtns = document.querySelectorAll('.chat-priority-btn');
+        const taskIds = new Set();
+        chatPriorityBtns.forEach(btn => taskIds.add(btn.getAttribute('data-task-id')));
+        
+        taskIds.forEach(taskId => {
+            const formData = new FormData();
+            formData.append('action', 'get_status');
+            formData.append('task_id', taskId);
+            
+            fetch('/tasks/', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': getCsrfToken() },
+                body: formData
+            })
+            .then(res => {
+                if (!res.ok) throw new Error('HTTP error ' + res.status);
+                return res.json();
+            })
+            .then(data => {
+                if (data.status === 'success') {
+                    const priBtns = document.querySelectorAll(`.chat-priority-btn[data-task-id="${taskId}"]`);
+                    priBtns.forEach(btn => {
+                        const p = btn.getAttribute('data-priority');
+                        if (p === data.priority) {
+                            btn.classList.add('bg-primary-container/20', 'text-primary', 'border-primary/50');
+                            btn.classList.remove('bg-surface-container-high', 'text-on-surface-variant');
+                        } else {
+                            btn.classList.remove('bg-primary-container/20', 'text-primary', 'border-primary/50');
+                            btn.classList.add('bg-surface-container-high', 'text-on-surface-variant');
+                        }
+                    });
+                }
+            })
+            .catch(err => console.error(err));
+        });
+    }
+
+    // Event listener for chat priority buttons
+    document.addEventListener('click', function(e) {
+        const btn = e.target.closest('.chat-priority-btn');
+        if (btn) {
+            const taskId = btn.getAttribute('data-task-id');
+            const priority = btn.getAttribute('data-priority');
+            
+            const formData = new FormData();
+            formData.append('action', 'update');
+            formData.append('task_id', taskId);
+            formData.append('priority', priority);
+            
+            fetch('/tasks/', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': getCsrfToken() },
+                body: formData
+            })
+            .then(res => {
+                if (!res.ok) throw new Error('HTTP error ' + res.status);
+                return res.json();
+            })
+            .then(data => {
+                if (data.status === 'success') {
+                    const priBtns = document.querySelectorAll(`.chat-priority-btn[data-task-id="${taskId}"]`);
+                    priBtns.forEach(b => {
+                        if (b === btn) {
+                            b.classList.add('bg-primary-container/20', 'text-primary', 'border-primary/50');
+                            b.classList.remove('bg-surface-container-high', 'text-on-surface-variant');
+                        } else {
+                            b.classList.remove('bg-primary-container/20', 'text-primary', 'border-primary/50');
+                            b.classList.add('bg-surface-container-high', 'text-on-surface-variant');
+                        }
+                    });
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 300);
+                }
+            })
+            .catch(err => console.error(err));
+        }
+    });
+
+    // Event listener for chat duration buttons
+    document.addEventListener('click', function(e) {
+        const btn = e.target.closest('.chat-duration-btn');
+        if (btn) {
+            const taskId = btn.getAttribute('data-task-id');
+            const val = btn.getAttribute('data-val');
+            const unit = btn.getAttribute('data-unit');
+            
+            const formData = new FormData();
+            formData.append('action', 'update');
+            formData.append('task_id', taskId);
+            formData.append('duration_value', val);
+            formData.append('duration_unit', unit);
+            
+            fetch('/tasks/', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': getCsrfToken() },
+                body: formData
+            })
+            .then(res => {
+                if (!res.ok) throw new Error('HTTP error ' + res.status);
+                return res.json();
+            })
+            .then(data => {
+                if (data.status === 'success') {
+                    const durBtns = document.querySelectorAll(`.chat-duration-btn[data-task-id="${taskId}"]`);
+                    durBtns.forEach(b => {
+                        if (b === btn) {
+                            b.classList.add('bg-primary-container/20', 'text-primary', 'border-primary/50');
+                            b.classList.remove('bg-surface-container-high', 'text-on-surface-variant');
+                        } else {
+                            b.classList.remove('bg-primary-container/20', 'text-primary', 'border-primary/50');
+                            b.classList.add('bg-surface-container-high', 'text-on-surface-variant');
+                        }
+                    });
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 300);
+                }
+            })
+            .catch(err => console.error(err));
+        }
+    });
+
+    // Run init on page load
+    initChatInteractiveBtns();
+
+    // Dashboard Priority Tasks Filter
+    (function() {
+        const dashFilterBtn = document.getElementById('dash-filter-btn');
+        const dashFilterMenu = document.getElementById('dash-filter-menu');
+        const dashFilterPriority = document.getElementById('dash-filter-priority');
+        const dashFilterClear = document.getElementById('dash-filter-clear');
+
+        if (dashFilterBtn && dashFilterMenu) {
+            const dashFilterContainer = document.getElementById('dash-filter-container');
+            let hoverTimeout = null;
+
+            dashFilterContainer.addEventListener('mouseenter', () => {
+                clearTimeout(hoverTimeout);
+                dashFilterMenu.classList.remove('hidden');
+            });
+
+            dashFilterContainer.addEventListener('mouseleave', () => {
+                hoverTimeout = setTimeout(() => {
+                    dashFilterMenu.classList.add('hidden');
+                }, 200);
+            });
+        }
+
+        function applyDashFilter() {
+            if (!dashFilterPriority) return;
+            const val = dashFilterPriority.value;
+            const items = document.querySelectorAll('#priority-tasks-container .dash-task-item, #priority-tasks-container [data-task-id]');
+            
+            items.forEach(item => {
+                const priority = item.getAttribute('data-priority');
+                if (val === 'ALL' || priority === val) {
+                    item.style.display = '';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+
+        if (dashFilterPriority) {
+            dashFilterPriority.addEventListener('change', applyDashFilter);
+        }
+
+        if (dashFilterClear) {
+            dashFilterClear.addEventListener('click', () => {
+                if (dashFilterPriority) dashFilterPriority.value = 'ALL';
+                applyDashFilter();
+            });
+        }
+
+        // Re-apply filter after side panel reloads
+        const origReload = window.reloadSidePanelTasks;
+        if (typeof reloadSidePanelTasks === 'function') {
+            const origFn = reloadSidePanelTasks;
+            window.reloadSidePanelTasks = function() {
+                origFn();
+                // Re-apply filter after a short delay for DOM to update
+                setTimeout(applyDashFilter, 500);
+            };
+        }
+    })();
+</script>
+{% endblock %}

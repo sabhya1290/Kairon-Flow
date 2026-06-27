@@ -1,0 +1,386 @@
+{% extends 'productivity/app_layout.html' %}
+
+{% block title %}Kairon Flow - Integration Settings{% endblock %}
+
+{% block main_content %}
+{% csrf_token %}
+<div class="flex-1 overflow-y-auto h-screen w-full relative">
+    <!-- Ambient Background glows -->
+    <div class="absolute inset-0 pointer-events-none overflow-hidden z-0">
+        <div class="absolute top-[-10%] right-[-5%] w-96 h-96 bg-primary-container/5 rounded-full blur-3xl"></div>
+        <div class="absolute bottom-[10%] left-[20%] w-[500px] h-[500px] bg-secondary-container/5 rounded-full blur-3xl"></div>
+    </div>
+
+    <!-- TopAppBar -->
+    <header class="h-16 border-b border-outline-variant bg-background/80 backdrop-blur-md flex justify-between items-center px-gutter w-full z-10 sticky top-0">
+        <div class="flex items-center">
+            <h1 class="font-title-lg text-title-lg font-semibold text-on-surface">Settings</h1>
+        </div>
+        <div class="flex items-center gap-md">
+            <div class="w-8 h-8 rounded-full overflow-hidden border border-outline-variant flex-shrink-0">
+                <img class="w-full h-full object-cover" src="{{ profile.avatar_url }}" id="header-user-avatar">
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Grid -->
+    <main class="p-lg md:p-xl max-w-container-max mx-auto relative z-10 space-y-xl">
+        <div class="mb-lg">
+            <h2 class="font-headline-lg text-headline-lg text-on-surface">Integration Settings</h2>
+            <p class="font-body-lg text-body-lg text-on-surface-variant mt-xs">Manage your connected calendar applications and tune your profile preferences.</p>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-xl">
+            <!-- Left Side: Integrations (Col Span 2) -->
+            <div class="lg:col-span-2 space-y-lg">
+                <!-- Connected Integrations Card -->
+                <div class="bg-surface-container-high border border-outline-variant rounded-xl p-lg space-y-md">
+                    <div class="flex justify-between items-center pb-md border-b border-outline-variant/30">
+                        <div>
+                            <h3 class="font-title-md text-title-md font-semibold text-on-surface">Connected Calendars</h3>
+                            <p class="font-body-sm text-body-sm text-on-surface-variant">Active calendar sync configurations</p>
+                        </div>
+                        <span class="material-symbols-outlined text-primary">sync</span>
+                    </div>
+
+                    <div id="integrations-list" class="space-y-sm">
+                        {% if integrations %}
+                            {% for integration in integrations %}
+                                <div class="flex items-center justify-between p-md bg-surface-container/40 rounded-lg border border-outline-variant/20 hover:border-outline-variant/40 transition-colors" data-id="{{ integration.id }}">
+                                    <div class="flex items-center gap-md">
+                                        <div class="w-10 h-10 rounded-lg bg-surface-container-highest flex items-center justify-center text-primary">
+                                            {% if "google" in integration.provider|lower %}
+                                                <span class="material-symbols-outlined">calendar_today</span>
+                                            {% else %}
+                                                <span class="material-symbols-outlined">calendar_month</span>
+                                            {% endif %}
+                                        </div>
+                                        <div>
+                                            <h4 class="font-title-sm text-title-sm text-on-surface">{{ integration.provider }}</h4>
+                                            <p class="font-body-sm text-body-sm text-on-surface-variant">{{ integration.connected_email }}</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="flex items-center gap-md">
+                                        <!-- Sync Switch -->
+                                        <label class="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" {% if integration.sync_active %}checked{% endif %} class="sr-only peer toggle-sync-btn" data-id="{{ integration.id }}">
+                                            <div class="w-9 h-5 bg-surface-container-highest rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-on-surface-variant after:border-outline-variant after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-primary peer-checked:after:bg-on-primary"></div>
+                                        </label>
+                                        
+                                        <!-- Disconnect button -->
+                                        <button class="disconnect-btn text-error hover:bg-error/10 p-sm rounded-lg transition-colors flex items-center justify-center" data-id="{{ integration.id }}" data-provider="{{ integration.provider }}">
+                                            <span class="material-symbols-outlined text-[20px]">link_off</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-center py-xl border border-dashed border-outline-variant/30 rounded-lg">
+                                <span class="material-symbols-outlined text-outline text-[48px] mb-xs">link_off</span>
+                                <p class="text-on-surface-variant font-body-md">No calendars connected yet. Add one below!</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Integration Marketplace / Connection Cards -->
+                <div class="bg-surface-container-high border border-outline-variant rounded-xl p-lg">
+                    <h3 class="font-title-md text-title-md font-semibold text-on-surface mb-md">Connect Services</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-md">
+                        <!-- Google Calendar -->
+                        <div class="p-md bg-surface-container-low border border-outline-variant/35 rounded-xl flex flex-col justify-between hover:border-primary/20 transition-all duration-300">
+                            <div>
+                                <div class="flex items-center justify-between mb-sm">
+                                    <div class="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                                        <span class="material-symbols-outlined">calendar_today</span>
+                                    </div>
+                                    <span class="px-sm py-xs text-[11px] font-medium bg-primary/15 text-primary rounded-full">Calendar</span>
+                                </div>
+                                <h4 class="font-title-sm text-title-sm text-on-surface">Google Calendar</h4>
+                                <p class="font-body-sm text-body-sm text-on-surface-variant mt-xs">Sync task due dates, events, and focus blocks directly to your primary calendar.</p>
+                            </div>
+                            <button onclick="openConnectModal('Google Calendar')" class="mt-md w-full bg-primary hover:bg-primary/90 text-on-primary py-sm px-md rounded-lg font-medium text-body-sm transition-all duration-200 flex items-center justify-center gap-sm">
+                                <span class="material-symbols-outlined text-[18px]">add_link</span>
+                                Connect Google
+                            </button>
+                        </div>
+
+                        <!-- Microsoft Outlook -->
+                        <div class="p-md bg-surface-container-low border border-outline-variant/35 rounded-xl flex flex-col justify-between hover:border-secondary/20 transition-all duration-300">
+                            <div>
+                                <div class="flex items-center justify-between mb-sm">
+                                    <div class="w-10 h-10 rounded-lg bg-secondary/10 flex items-center justify-center text-secondary">
+                                        <span class="material-symbols-outlined">calendar_month</span>
+                                    </div>
+                                    <span class="px-sm py-xs text-[11px] font-medium bg-secondary/15 text-secondary rounded-full">Calendar</span>
+                                </div>
+                                <h4 class="font-title-sm text-title-sm text-on-surface">Microsoft Outlook</h4>
+                                <p class="font-body-sm text-body-sm text-on-surface-variant mt-xs">Synchronize tasks and schedules with your Office365 or personal Outlook account.</p>
+                            </div>
+                            <button onclick="openConnectModal('Microsoft Outlook')" class="mt-md w-full bg-surface-container-highest hover:bg-surface-container-highest/80 text-on-surface py-sm px-md rounded-lg font-medium text-body-sm border border-outline-variant/40 transition-all duration-200 flex items-center justify-center gap-sm">
+                                <span class="material-symbols-outlined text-[18px]">add_link</span>
+                                Connect Outlook
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Preferences Panel (Col Span 1) -->
+            <div class="bg-surface-container-high border border-outline-variant rounded-xl p-lg flex flex-col h-fit">
+                <div class="pb-md border-b border-outline-variant/30 mb-md">
+                    <h3 class="font-title-md text-title-md font-semibold text-on-surface">Preferences</h3>
+                    <p class="font-body-sm text-body-sm text-on-surface-variant">Update your Kairon Flow personal settings</p>
+                </div>
+
+                <form id="preferences-form" class="space-y-md">
+                    <!-- Avatar URL -->
+                    <div>
+                        <label class="block font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-xs" for="avatar_url">Avatar Image URL</label>
+                        <input type="url" id="avatar_url" name="avatar_url" value="{{ profile.avatar_url }}" class="w-full bg-surface-container border border-outline-variant/50 rounded-lg p-sm text-on-surface font-body-md focus:outline-none focus:border-primary/50 transition-all">
+                    </div>
+
+                    <!-- Work Role -->
+                    <div>
+                        <label class="block font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-xs" for="work_role">Work Role</label>
+                        <select id="work_role" name="work_role" class="w-full bg-surface-container border border-outline-variant/50 rounded-lg p-sm text-on-surface font-body-md focus:outline-none focus:border-primary/50 transition-all">
+                            {% for key, val in profile.ROLE_CHOICES %}
+                                <option value="{{ key }}" {% if profile.work_role == key %}selected{% endif %}>{{ val }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Primary Goal -->
+                    <div>
+                        <label class="block font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-xs" for="primary_goal">Primary Focus</label>
+                        <select id="primary_goal" name="primary_goal" class="w-full bg-surface-container border border-outline-variant/50 rounded-lg p-sm text-on-surface font-body-md focus:outline-none focus:border-primary/50 transition-all">
+                            {% for key, val in profile.GOAL_CHOICES %}
+                                <option value="{{ key }}" {% if profile.primary_goal == key %}selected{% endif %}>{{ val }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Preferred Work Hours -->
+                    <div>
+                        <label class="block font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-xs" for="preferred_work_hours">Preferred Hours</label>
+                        <select id="preferred_work_hours" name="preferred_work_hours" class="w-full bg-surface-container border border-outline-variant/50 rounded-lg p-sm text-on-surface font-body-md focus:outline-none focus:border-primary/50 transition-all">
+                            {% for key, val in profile.SCHEDULE_CHOICES %}
+                                <option value="{{ key }}" {% if profile.preferred_work_hours == key %}selected{% endif %}>{{ val }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Daily Saved Hours -->
+                    <div>
+                        <label class="block font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-xs" for="daily_saved_hours">Daily Saved Hours</label>
+                        <input type="number" step="0.1" min="0" max="24" id="daily_saved_hours" name="daily_saved_hours" value="{{ profile.daily_saved_hours }}" class="w-full bg-surface-container border border-outline-variant/50 rounded-lg p-sm text-on-surface font-body-md focus:outline-none focus:border-primary/50 transition-all">
+                    </div>
+
+                    <button type="submit" class="w-full bg-primary hover:bg-primary/90 text-on-primary py-sm px-md rounded-lg font-medium text-body-md transition-all duration-200 flex items-center justify-center gap-sm mt-lg">
+                        <span class="material-symbols-outlined text-[20px]">save</span>
+                        Save Preferences
+                    </button>
+                </form>
+            </div>
+        </div>
+    </main>
+
+    <!-- Connect Integration Modal (Simulated OAuth) -->
+    <div id="connect-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm hidden">
+        <div class="glass-panel w-full max-w-md p-lg rounded-xl border border-outline-variant/30 text-on-surface shadow-2xl relative mx-4">
+            <div class="flex justify-between items-center mb-md">
+                <h3 id="connect-modal-title" class="font-title-md text-title-md font-semibold text-primary">Connect Integration</h3>
+                <button type="button" onclick="closeConnectModal()" class="text-on-surface-variant hover:text-on-surface transition-colors">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <form id="connect-modal-form" class="space-y-md">
+                <input type="hidden" id="connect-provider" name="provider">
+                
+                <div>
+                    <p class="font-body-sm text-body-sm text-on-surface-variant mb-md">Authorize Kairon Flow to synchronize tasks and events with your calendar provider.</p>
+                </div>
+
+                <div>
+                    <label class="block font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider mb-xs" for="connect-email-input">Account Email Address</label>
+                    <input type="email" id="connect-email-input" name="connected_email" required class="w-full bg-surface-container border border-outline-variant/50 rounded-lg p-sm text-on-surface font-body-md focus:outline-none focus:border-primary/50 transition-all" placeholder="name@domain.com">
+                </div>
+
+                <div class="flex gap-md pt-md">
+                    <button type="button" onclick="closeConnectModal()" class="flex-1 bg-surface-container-highest hover:bg-surface-container-highest/80 text-on-surface py-sm px-md rounded-lg font-medium text-body-sm transition-all duration-200 text-center">
+                        Cancel
+                    </button>
+                    <button type="submit" class="flex-1 bg-primary hover:bg-primary/90 text-on-primary py-sm px-md rounded-lg font-medium text-body-sm transition-all duration-200 flex items-center justify-center gap-sm">
+                        <span class="material-symbols-outlined text-[18px]">verified</span>
+                        Authorize Sync
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function getCsrfToken() {
+        const tokenInput = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (tokenInput) return tokenInput.value;
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, 10) === 'csrftoken=') {
+                    cookieValue = decodeURIComponent(cookie.substring(10));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Toggle sync handler
+        document.querySelectorAll('.toggle-sync-btn').forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const integrationId = this.getAttribute('data-id');
+                const formData = new FormData();
+                formData.append('action', 'toggle_sync');
+                formData.append('integration_id', integrationId);
+
+                fetch('', {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': getCsrfToken() },
+                    body: formData
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'success') {
+                        window.showToast(data.message, 'success');
+                    } else {
+                        window.showToast(data.message, 'warning');
+                        this.checked = !this.checked; // Revert checkbox state
+                    }
+                })
+                .catch(err => {
+                    window.showToast('Network error: ' + err.message, 'warning');
+                    this.checked = !this.checked; // Revert checkbox state
+                });
+            });
+        });
+
+        // Disconnect handler
+        document.querySelectorAll('.disconnect-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const integrationId = this.getAttribute('data-id');
+                const provider = this.getAttribute('data-provider');
+
+                window.showConfirmModal(`Disconnect ${provider}? Tasks will no longer sync.`, () => {
+                    const formData = new FormData();
+                    formData.append('action', 'disconnect_integration');
+                    formData.append('integration_id', integrationId);
+
+                    fetch('', {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': getCsrfToken() },
+                        body: formData
+                    })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            window.showToast(data.message, 'success');
+                            // Remove element from UI
+                            const el = document.querySelector(`[data-id="${integrationId}"]`);
+                            if (el) el.remove();
+                            // If no integrations left, reload page to show empty state
+                            if (document.querySelectorAll('#integrations-list [data-id]').length === 0) {
+                                window.location.reload();
+                            }
+                        } else {
+                            window.showToast(data.message, 'warning');
+                        }
+                    })
+                    .catch(err => {
+                        window.showToast('Network error: ' + err.message, 'warning');
+                    });
+                });
+            });
+        });
+
+        // Preference update form submission
+        const prefForm = document.getElementById('preferences-form');
+        prefForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            formData.append('action', 'update_profile');
+            formData.append('ajax', 'true');
+
+            fetch('', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': getCsrfToken() },
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    window.showToast(data.message, 'success');
+                    // Dynamically update the header user avatar if URL changed
+                    const newAvatar = document.getElementById('avatar_url').value;
+                    const headerImg = document.getElementById('header-user-avatar');
+                    if (headerImg && newAvatar) {
+                        headerImg.src = newAvatar;
+                    }
+                } else {
+                    window.showToast(data.message, 'warning');
+                }
+            })
+            .catch(err => {
+                window.showToast('Failed to save preferences: ' + err.message, 'warning');
+            });
+        });
+
+        // Simulated Connect Integration Flow
+        const connectModal = document.getElementById('connect-modal');
+        const connectProviderInput = document.getElementById('connect-provider');
+        const connectModalTitle = document.getElementById('connect-modal-title');
+        const connectForm = document.getElementById('connect-modal-form');
+
+        window.openConnectModal = function(provider) {
+            connectProviderInput.value = provider;
+            connectModalTitle.textContent = `Connect to ${provider}`;
+            document.getElementById('connect-email-input').value = '';
+            connectModal.classList.remove('hidden');
+        };
+
+        window.closeConnectModal = function() {
+            connectModal.classList.add('hidden');
+        };
+
+        connectForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            formData.append('action', 'connect_integration');
+
+            fetch('', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': getCsrfToken() },
+                body: formData
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    window.showToast(data.message, 'success');
+                    closeConnectModal();
+                    // Reload to show the connected calendar
+                    window.location.reload();
+                } else {
+                    window.showToast(data.message, 'warning');
+                }
+            })
+            .catch(err => {
+                window.showToast('Connection failed: ' + err.message, 'warning');
+            });
+        });
+    });
+</script>
+{% endblock %}
