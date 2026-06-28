@@ -13,6 +13,28 @@ from .models import UserProfile, Category, Task, Habit, CalendarIntegration, Cha
 from .serializers import ChatMessageSerializer
 
 import datetime
+import functools
+import re
+
+def compute_ai_score(priority: str, due_date) -> int:
+    """
+    Simple deterministic score based on priority and deadline proximity.
+    HIGH = base 80, MEDIUM = base 50, LOW = base 20.
+    Add up to 20 urgency points if due within 24 hours,
+    10 if due within 72 hours, 5 if due within 7 days.
+    Cap at 100.
+    """
+    base = {'HIGH': 80, 'MEDIUM': 50, 'LOW': 20}.get(priority, 50)
+    if due_date:
+        now = timezone.now()
+        delta = (due_date - now).total_seconds()
+        if delta < 86400:
+            base += 20
+        elif delta < 259200:
+            base += 10
+        elif delta < 604800:
+            base += 5
+    return min(base, 100)
 
 
 def create_personalized_data(user):
@@ -83,64 +105,70 @@ def create_personalized_data(user):
     # Create starter tasks based on goal
     now = timezone.localtime(timezone.now())
     if goal == 'task_management' or goal == 'all':
+        due1 = now.replace(hour=focus_start_hour, minute=0, second=0, microsecond=0)
         Task.objects.create(
             user=user,
             title=f"Set up your first project workspace",
             category=created_cats[0],
             priority="HIGH",
-            due_date=now.replace(hour=focus_start_hour, minute=0, second=0, microsecond=0),
-            ai_score=90,
+            due_date=due1,
+            ai_score=compute_ai_score("HIGH", due1),
             completed=False
         )
+        due2 = now + datetime.timedelta(days=1)
         Task.objects.create(
             user=user,
             title=f"Organize tasks by priority",
             category=created_cats[1],
             priority="MEDIUM",
-            due_date=now + datetime.timedelta(days=1),
-            ai_score=70,
+            due_date=due2,
+            ai_score=compute_ai_score("MEDIUM", due2),
             completed=False
         )
     if goal == 'focus_time' or goal == 'all':
+        due3 = now.replace(hour=focus_start_hour, minute=0, second=0, microsecond=0)
         Task.objects.create(
             user=user,
             title=f"Complete your first {focus_label}",
             category=created_cats[0],
             priority="HIGH",
-            due_date=now.replace(hour=focus_start_hour, minute=0, second=0, microsecond=0),
-            ai_score=95,
+            due_date=due3,
+            ai_score=compute_ai_score("HIGH", due3),
             completed=False
         )
     if goal == 'habit_tracking' or goal == 'all':
+        due4 = now + datetime.timedelta(days=1)
         Task.objects.create(
             user=user,
             title="Set up your daily habits",
             category=created_cats[1],
             priority="MEDIUM",
-            due_date=now + datetime.timedelta(days=1),
-            ai_score=80,
+            due_date=due4,
+            ai_score=compute_ai_score("MEDIUM", due4),
             completed=False
         )
     if goal == 'scheduling' or goal == 'all':
+        due5 = now + datetime.timedelta(days=2)
         Task.objects.create(
             user=user,
             title="Connect your calendar for smart scheduling",
             category=created_cats[2] if len(created_cats) > 2 else created_cats[0],
             priority="MEDIUM",
-            due_date=now + datetime.timedelta(days=2),
-            ai_score=75,
+            due_date=due5,
+            ai_score=compute_ai_score("MEDIUM", due5),
             completed=False
         )
 
     # If no specific goal matched, create generic starter tasks
     if not Task.objects.filter(user=user).exists():
+        due6 = now + datetime.timedelta(days=1)
         Task.objects.create(
             user=user,
             title="Explore your Kairon Flow dashboard",
             category=created_cats[0],
             priority="MEDIUM",
-            due_date=now + datetime.timedelta(days=1),
-            ai_score=80,
+            due_date=due6,
+            ai_score=compute_ai_score("MEDIUM", due6),
             completed=False
         )
 
@@ -214,12 +242,11 @@ def create_personalized_data(user):
 
 def require_onboarding(view_func):
     """Decorator that redirects users to onboarding if they haven't completed it."""
+    @functools.wraps(view_func)
     def wrapper(request, *args, **kwargs):
         if request.user.is_authenticated and not request.user.profile.onboarding_completed:
             return redirect('onboarding')
         return view_func(request, *args, **kwargs)
-    wrapper.__name__ = view_func.__name__
-    wrapper.__doc__ = view_func.__doc__
     return wrapper
 
 
@@ -286,7 +313,7 @@ def task_list_view(request):
             duration_unit = request.POST.get("duration_unit")
             
             if not title:
-                return JsonResponse({"status": "error", "message": "Title is required"})
+                return JsonResponse({"status": "error", "message": "Title is required"}, status=400)
                 
             # Category
             category = None
@@ -320,7 +347,7 @@ def task_list_view(request):
                 category=category,
                 priority=priority,
                 due_date=due_date,
-                ai_score=75,
+                ai_score=compute_ai_score(priority, due_date),
                 completed=False
             )
             return JsonResponse({
@@ -338,7 +365,7 @@ def task_list_view(request):
             task_id = request.POST.get("task_id")
             task = Task.objects.filter(user=request.user, id=task_id).first()
             if not task:
-                return JsonResponse({"status": "error", "message": "Task not found"})
+                return JsonResponse({"status": "error", "message": "Task not found"}, status=404)
                 
             title = request.POST.get("title")
             category_id = request.POST.get("category_id")
@@ -384,7 +411,12 @@ def task_list_view(request):
                         task.due_date = due_date
             
             if completed_str is not None:
-                task.completed = completed_str.lower() == "true"
+                new_completed = completed_str.lower() == "true"
+                if new_completed and not task.completed:
+                    task.completed_at = timezone.now()
+                elif not new_completed and task.completed:
+                    task.completed_at = None
+                task.completed = new_completed
                 
             task.save()
             return JsonResponse({"status": "success"})
@@ -394,7 +426,7 @@ def task_list_view(request):
             task_id = request.POST.get("task_id")
             task = Task.objects.filter(user=request.user, id=task_id).first()
             if not task:
-                return JsonResponse({"status": "error", "message": "Task not found"})
+                return JsonResponse({"status": "error", "message": "Task not found"}, status=404)
             task.delete()
             return JsonResponse({"status": "success"})
             
@@ -403,7 +435,7 @@ def task_list_view(request):
             task_id = request.POST.get("task_id")
             task = Task.objects.filter(user=request.user, id=task_id).first()
             if not task:
-                return JsonResponse({"status": "error", "message": "Task not found"})
+                return JsonResponse({"status": "error", "message": "Task not found"}, status=404)
             return JsonResponse({
                 "status": "success",
                 "priority": task.priority,
@@ -417,9 +449,13 @@ def task_list_view(request):
             task = Task.objects.filter(user=request.user, id=task_id).first()
             if task:
                 task.completed = not task.completed
+                if task.completed:
+                    task.completed_at = timezone.now()
+                else:
+                    task.completed_at = None
                 task.save()
                 return JsonResponse({"status": "success", "completed": task.completed})
-            return JsonResponse({"status": "error", "message": "Task not found"})
+            return JsonResponse({"status": "error", "message": "Task not found"}, status=404)
 
     tasks = Task.objects.filter(user=request.user).order_by('completed', '-priority', '-ai_score')
     profile = request.user.profile
@@ -444,7 +480,14 @@ def analytics_view(request):
 
         if action == 'toggle_habit_day':
             habit_id = request.POST.get('habit_id')
-            day_index = int(request.POST.get('day_index', -1))
+            day_index_str = request.POST.get('day_index')
+            if not habit_id or day_index_str is None:
+                return JsonResponse({'status': 'error', 'message': 'Habit ID and Day Index are required'}, status=400)
+            try:
+                day_index = int(day_index_str)
+            except ValueError:
+                return JsonResponse({'status': 'error', 'message': 'Invalid day index'}, status=400)
+
             try:
                 habit = Habit.objects.get(id=habit_id, user=request.user)
                 if 0 <= day_index < len(habit.history):
@@ -452,10 +495,10 @@ def analytics_view(request):
                     # Recalculate streak
                     streak = 0
                     for day in reversed(habit.history):
-                        if day['completed']:
-                            streak += 1
-                        else:
-                            break
+                         if day['completed']:
+                             streak += 1
+                         else:
+                             break
                     habit.streak_days = streak
                     habit.save()
                     return JsonResponse({
@@ -463,27 +506,34 @@ def analytics_view(request):
                         'completed': habit.history[day_index]['completed'],
                         'streak_days': habit.streak_days,
                     })
+                else:
+                    return JsonResponse({'status': 'error', 'message': 'Day index out of range'}, status=400)
             except Habit.DoesNotExist:
                 return JsonResponse({'status': 'error', 'message': 'Habit not found'}, status=404)
+            except Exception as e:
+                return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
         elif action == 'create_habit':
             name = request.POST.get('name', '').strip()
             if name:
-                habit = Habit.objects.create(
-                    user=request.user,
-                    name=name,
-                    streak_days=0,
-                    history=[
-                        {"day": "Mon", "completed": False},
-                        {"day": "Tue", "completed": False},
-                        {"day": "Wed", "completed": False},
-                        {"day": "Thu", "completed": False},
-                        {"day": "Fri", "completed": False},
-                        {"day": "Sat", "completed": False},
-                        {"day": "Sun", "completed": False},
-                    ]
-                )
-                return JsonResponse({'status': 'success', 'habit_id': habit.id, 'name': habit.name})
+                try:
+                    habit = Habit.objects.create(
+                        user=request.user,
+                        name=name,
+                        streak_days=0,
+                        history=[
+                            {"day": "Mon", "completed": False},
+                            {"day": "Tue", "completed": False},
+                            {"day": "Wed", "completed": False},
+                            {"day": "Thu", "completed": False},
+                            {"day": "Fri", "completed": False},
+                            {"day": "Sat", "completed": False},
+                            {"day": "Sun", "completed": False},
+                        ]
+                    )
+                    return JsonResponse({'status': 'success', 'habit_id': habit.id, 'name': habit.name})
+                except Exception as e:
+                    return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
             return JsonResponse({'status': 'error', 'message': 'Name is required'}, status=400)
 
         elif action == 'delete_habit':
@@ -494,6 +544,8 @@ def analytics_view(request):
                 return JsonResponse({'status': 'success'})
             except Habit.DoesNotExist:
                 return JsonResponse({'status': 'error', 'message': 'Habit not found'}, status=404)
+            except Exception as e:
+                return JsonResponse({'status': 'error', 'message': str(e)}, status=500)
 
         return JsonResponse({'status': 'error', 'message': 'Unknown action'}, status=400)
 
@@ -517,7 +569,7 @@ def analytics_view(request):
         day = today - datetime.timedelta(days=i)
         day_completed = all_tasks.filter(
             completed=True,
-            created_at__date=day
+            completed_at__date=day
         ).count()
         if day_completed > max_completed_day:
             max_completed_day = day_completed
@@ -572,21 +624,35 @@ def logout_view(request):
     logout(request)
     return redirect('login')
 
+from django import forms
+from django.contrib.auth.forms import UserCreationForm as BaseUserCreationForm
+
+class KaironSignupForm(BaseUserCreationForm):
+    email = forms.EmailField(required=False, max_length=254)
+    first_name = forms.CharField(required=False, max_length=150, strip=True)
+
+    class Meta(BaseUserCreationForm.Meta):
+        fields = BaseUserCreationForm.Meta.fields + ('email', 'first_name')
+
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.email = self.cleaned_data.get('email', '')
+        user.first_name = self.cleaned_data.get('first_name', '')
+        if commit:
+            user.save()
+        return user
+
 def signup_view(request):
     if request.user.is_authenticated:
         return redirect('onboarding')
     if request.method == 'POST':
-        form = UserCreationForm(request.POST)
+        form = KaironSignupForm(request.POST)
         if form.is_valid():
             user = form.save()
-            # Assign email if provided (or default)
-            user.email = request.POST.get('email', '')
-            user.first_name = request.POST.get('first_name', '')
-            user.save()
             login(request, user)
             return redirect('onboarding')
     else:
-        form = UserCreationForm()
+        form = KaironSignupForm()
     return render(request, 'productivity/login.html', {'signup_form': form, 'signup_mode': True})
 
 
@@ -677,7 +743,6 @@ class ChatMessageViewSet(viewsets.ModelViewSet):
         # Supports: "add task Buy groceries high 5pm"
         #           "add task Fix bug medium tomorrow 3pm"
         #           "add task Read docs low in 2 hours"
-        import re
         add_task_match = re.match(
             r'(?:add|create|new)\s+(?:a\s+)?task\s*[:\-]?\s*(.+)',
             text, re.IGNORECASE
@@ -772,7 +837,7 @@ class ChatMessageViewSet(viewsets.ModelViewSet):
                 category=cat,
                 priority=priority,
                 due_date=due_date,
-                ai_score=75,
+                ai_score=compute_ai_score(priority, due_date),
                 completed=False
             )
 
@@ -1093,7 +1158,13 @@ def settings_view(request):
             connected_email = request.POST.get("connected_email")
 
             if not provider or not connected_email:
-                return JsonResponse({"status": "error", "message": "Provider and Email are required"})
+                return JsonResponse({"status": "error", "message": "Provider and Email are required"}, status=400)
+
+            if CalendarIntegration.objects.filter(user=request.user).count() >= 10:
+                return JsonResponse(
+                    {"status": "error", "message": "Maximum of 10 integrations allowed."},
+                    status=400
+                )
 
             integration = CalendarIntegration.objects.create(
                 user=request.user,
@@ -1119,7 +1190,7 @@ def settings_view(request):
             integration_id = request.POST.get("integration_id")
             integration = CalendarIntegration.objects.filter(user=request.user, id=integration_id).first()
             if not integration:
-                return JsonResponse({"status": "error", "message": "Integration not found"})
+                return JsonResponse({"status": "error", "message": "Integration not found"}, status=404)
 
             integration.sync_active = not integration.sync_active
             integration.save()
@@ -1135,7 +1206,7 @@ def settings_view(request):
             integration_id = request.POST.get("integration_id")
             integration = CalendarIntegration.objects.filter(user=request.user, id=integration_id).first()
             if not integration:
-                return JsonResponse({"status": "error", "message": "Integration not found"})
+                return JsonResponse({"status": "error", "message": "Integration not found"}, status=404)
 
             provider = integration.provider
             integration.delete()
@@ -1145,7 +1216,7 @@ def settings_view(request):
                 "message": f"Successfully disconnected {provider}."
             })
 
-        return JsonResponse({"status": "error", "message": "Invalid action"})
+        return JsonResponse({"status": "error", "message": "Invalid action"}, status=400)
 
     context = {
         'profile': profile,

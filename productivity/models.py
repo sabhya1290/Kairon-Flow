@@ -74,6 +74,7 @@ class Task(models.Model):
     due_date = models.DateTimeField(null=True, blank=True)
     ai_score = models.IntegerField(default=0)
     completed = models.BooleanField(default=False)
+    completed_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
