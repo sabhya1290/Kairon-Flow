@@ -1,11 +1,22 @@
 import logging
 import datetime
+from django.contrib.auth.models import User
 from productivity.models import Habit, HabitEntry
 from productivity.constants import DEFAULT_HABIT_HISTORY
 
 logger = logging.getLogger(__name__)
 
-def create_habit(user, name) -> Habit:
+def create_habit(user: User, name: str) -> Habit:
+    """
+    Create a new Habit for the given user.
+
+    Args:
+        user: Owner of the habit.
+        name: Name/description of the habit.
+
+    Returns:
+        The newly created Habit instance.
+    """
     habit = Habit.objects.create(
         user=user,
         name=name,
@@ -15,7 +26,21 @@ def create_habit(user, name) -> Habit:
     logger.info("User %s created habit %s", user.id, habit.id)
     return habit
 
-def toggle_habit_day(user, habit_id, day_index) -> Habit:
+def toggle_habit_day(user: User, habit_id: int, day_index: int) -> Habit:
+    """
+    Toggle completion status of a habit for a specific day index in the current week.
+
+    Args:
+        user: Owner of the habit.
+        habit_id: Database habit identifier.
+        day_index: Weekday index from 0 (Monday) to 6 (Sunday).
+
+    Returns:
+        The updated Habit instance.
+
+    Raises:
+        IndexError: If day_index is out of range (not 0 to 6).
+    """
     habit = Habit.objects.get(id=habit_id, user=user)
     if not (0 <= day_index < 7):
         raise IndexError("Day index out of range")
@@ -59,7 +84,17 @@ def toggle_habit_day(user, habit_id, day_index) -> Habit:
     logger.info("User %s toggled day_index %s (date: %s) on habit %s. Streak: %s", user.id, day_index, target_date, habit.id, habit.streak_days)
     return habit
 
-def delete_habit(user, habit_id) -> bool:
+def delete_habit(user: User, habit_id: int) -> bool:
+    """
+    Delete a habit belonging to the user.
+
+    Args:
+        user: Owner of the habit.
+        habit_id: Database habit identifier.
+
+    Returns:
+        True if deleted successfully, False otherwise.
+    """
     try:
         habit = Habit.objects.get(id=habit_id, user=user)
         habit.delete()

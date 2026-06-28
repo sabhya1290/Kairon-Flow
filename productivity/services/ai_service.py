@@ -2,13 +2,22 @@ import logging
 import datetime
 import re
 from django.utils import timezone
+from django.contrib.auth.models import User
 from productivity.models import Task, Habit, Category
 from productivity.services.task_service import create_task, compute_ai_score
 
 logger = logging.getLogger(__name__)
 
-def _parse_time_str(time_str):
-    """Parse a time string like '5pm', '5:30pm', '17:00' into (hour, minute)."""
+def _parse_time_str(time_str: str) -> tuple[int, int]:
+    """
+    Parse a time string like '5pm', '5:30pm', '17:00' into (hour, minute).
+
+    Args:
+        time_str: The raw time text.
+
+    Returns:
+        A tuple of (hour, minute) in 24-hour format.
+    """
     if not time_str:
         return (17, 0)  # default to 5 PM
 
@@ -33,10 +42,16 @@ def _parse_time_str(time_str):
 
     return (17, 0)  # fallback
 
-def parse_command(user, content) -> tuple[str, dict | None]:
+def parse_command(user: User, content: str) -> tuple[str, dict | None]:
     """
-    Smart AI that parses user messages and takes real actions.
-    Replace regex logic with LLM API call in Phase 3, Step 5.
+    Parse natural language messages and perform appropriate task, habit, or calendar actions.
+
+    Args:
+        user: The authenticated User sending the message.
+        content: The message content to parse.
+
+    Returns:
+        A tuple of (ai_reply_content, structured_data_dict_or_None).
     """
     text = content.lower().strip()
     ai_content = ""
@@ -219,6 +234,7 @@ def parse_command(user, content) -> tuple[str, dict | None]:
             ai_content = "You don't have any pending tasks right now! Time to add some? 📋"
         return ai_content, structured_data
 
+    # ── LISTING HABITS ────────────────────────────────────────
     if any(w in text for w in ['list habits', 'show habits', 'view habits', 'my habits']):
         habits = Habit.objects.filter(user=user)
         if habits.exists():

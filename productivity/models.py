@@ -4,6 +4,16 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 
 class UserProfile(models.Model):
+    """
+    Profile metadata for an individual Kairon Flow user.
+
+    Fields:
+        user: Owner of this profile.
+        avatar_url: URL to user's profile image.
+        flow_score: Computed aggregate metric representing productivity.
+        daily_saved_hours: Metric storing estimated daily time savings.
+        onboarding_completed: Flipped to True after user onboarding flow.
+    """
     ROLE_CHOICES = [
         ('developer', 'Developer'),
         ('designer', 'Designer'),
@@ -51,6 +61,14 @@ def create_or_update_user_profile(sender, instance, created, **kwargs):
     instance.profile.save()
 
 class Category(models.Model):
+    """
+    User-scoped or system category for organizing tasks.
+
+    Fields:
+        user: Owner of this category (null representing global/system default).
+        name: Name of the category.
+        color: Visual tag mapping.
+    """
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
@@ -76,6 +94,16 @@ class Category(models.Model):
         return self.name
 
 class Task(models.Model):
+    """
+    A single actionable item belonging to a user.
+
+    Fields:
+        ai_score: Computed urgency score (0–100). Higher = more urgent.
+                  Recalculated by compute_ai_score() whenever priority or
+                  due_date changes. Never set manually.
+        completed_at: Set automatically to now() when completed flips to True.
+                      Used for accurate completion-date analytics.
+    """
     PRIORITY_CHOICES = [
         ('HIGH', 'High'),
         ('MEDIUM', 'Medium'),
@@ -104,6 +132,14 @@ class Task(models.Model):
         return self.title
 
 class HabitEntry(models.Model):
+    """
+    An entry mapping daily completion status of a habit.
+
+    Fields:
+        habit: Reference to parent Habit.
+        date: The calendar date tracked.
+        completed: Boolean completion flag.
+    """
     habit = models.ForeignKey(
         'Habit',
         on_delete=models.CASCADE,
@@ -123,6 +159,14 @@ class HabitEntry(models.Model):
         return f"{self.habit.name} — {self.date}: {'✓' if self.completed else '✗'}"
 
 class Habit(models.Model):
+    """
+    A recurrent routine being tracked by the user.
+
+    Fields:
+        user: Owner of the habit.
+        name: Routine description.
+        streak_days: Consecutive completed entries counter.
+    """
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='habits')
     name = models.CharField(max_length=255)
     streak_days = models.IntegerField(default=0)
@@ -134,6 +178,14 @@ class Habit(models.Model):
         return self.name
 
 class CalendarIntegration(models.Model):
+    """
+    An external calendar sync connection configuration.
+
+    Fields:
+        user: Owner of the integration.
+        provider: E.g., 'Google Calendar'.
+        connected_email: Connected calendar account email.
+    """
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='calendar_integrations')
     provider = models.CharField(max_length=100) # e.g. Google Calendar, Microsoft Outlook
     connected_email = models.EmailField()
@@ -152,6 +204,15 @@ class CalendarIntegration(models.Model):
         return f"{self.provider} ({self.connected_email})"
 
 class ChatMessage(models.Model):
+    """
+    A single dialog message history between User and AI assistant.
+
+    Fields:
+        user: The owner of this dialog.
+        role: Enum (USER/AI).
+        content: String text content.
+        structured_data: Rich layout metadata JSON field.
+    """
     ROLE_CHOICES = [
         ('USER', 'User'),
         ('AI', 'AI'),

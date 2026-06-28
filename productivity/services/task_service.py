@@ -1,18 +1,22 @@
 import datetime
 import logging
 from django.utils import timezone
+from django.contrib.auth.models import User
 from productivity.models import Task, Category, Habit
 from productivity.constants import DEFAULT_HABIT_HISTORY
 
 logger = logging.getLogger(__name__)
 
-def compute_ai_score(priority: str, due_date) -> int:
+def compute_ai_score(priority: str, due_date: datetime.datetime = None) -> int:
     """
-    Simple deterministic score based on priority and deadline proximity.
-    HIGH = base 80, MEDIUM = base 50, LOW = base 20.
-    Add up to 20 urgency points if due within 24 hours,
-    10 if due within 72 hours, 5 if due within 7 days.
-    Cap at 100.
+    Compute a priority score from 0 to 100 based on task priority and due date urgency.
+
+    Args:
+        priority: Task priority level (HIGH, MEDIUM, LOW).
+        due_date: Optional datetime for task deadline.
+
+    Returns:
+        The calculated AI urgency score (0-100).
     """
     base = {'HIGH': 80, 'MEDIUM': 50, 'LOW': 20}.get(priority, 50)
     if due_date:
@@ -26,8 +30,13 @@ def compute_ai_score(priority: str, due_date) -> int:
             base += 5
     return min(base, 100)
 
-def setup_onboarding_data(user):
-    """One-time creation of personalized initial data based on user's onboarding preferences."""
+def setup_onboarding_data(user: User) -> None:
+    """
+    Initialize starter categories, tasks, and habits based on onboarding selections.
+
+    Args:
+        user: Owner of the onboarding profile.
+    """
     profile = user.profile
     role = profile.work_role
     goal = profile.primary_goal
@@ -129,7 +138,20 @@ def setup_onboarding_data(user):
         )
         logger.info("Created starter habits for user %s during onboarding setup", user.id)
 
-def create_task(user, title, category_id, priority, due_date) -> Task:
+def create_task(user: User, title: str, category_id: int = None, priority: str = 'MEDIUM', due_date: datetime.datetime = None) -> Task:
+    """
+    Create a new Task for the given user and compute its initial ai_score.
+
+    Args:
+        user: The authenticated User who owns this task.
+        title: Task title (max 255 chars).
+        category_id: Optional FK to a Category owned by the user.
+        priority: One of 'HIGH', 'MEDIUM', 'LOW'. Default 'MEDIUM'.
+        due_date: Optional datetime for task deadline.
+
+    Returns:
+        The newly created Task instance (already saved to DB).
+    """
     category = None
     if category_id:
         category = Category.objects.filter(id=category_id).first()
@@ -145,7 +167,18 @@ def create_task(user, title, category_id, priority, due_date) -> Task:
     logger.info("User %s created task %s", user.id, task.id)
     return task
 
-def update_task(user, task_id, **fields) -> Task:
+def update_task(user: User, task_id: int, **fields) -> Task:
+    """
+    Update field values on an existing Task and recalculate its urgency score.
+
+    Args:
+        user: Owner of the task.
+        task_id: Database task identifier.
+        **fields: Keyword arguments of values to update.
+
+    Returns:
+        The updated Task instance.
+    """
     task = Task.objects.get(user=user, id=task_id)
     for field, value in fields.items():
         if field == 'category_id':
@@ -169,7 +202,17 @@ def update_task(user, task_id, **fields) -> Task:
     logger.info("User %s updated task %s", user.id, task.id)
     return task
 
-def delete_task(user, task_id) -> bool:
+def delete_task(user: User, task_id: int) -> bool:
+    """
+    Delete a task belonging to the user.
+
+    Args:
+        user: Task owner.
+        task_id: ID of task to delete.
+
+    Returns:
+        True if deleted successfully, False otherwise.
+    """
     try:
         task = Task.objects.get(user=user, id=task_id)
         task.delete()
@@ -178,7 +221,17 @@ def delete_task(user, task_id) -> bool:
     except Task.DoesNotExist:
         return False
 
-def toggle_task_complete(user, task_id) -> Task:
+def toggle_task_complete(user: User, task_id: int) -> Task:
+    """
+    Toggle completed status of a task.
+
+    Args:
+        user: Task owner.
+        task_id: ID of task to toggle.
+
+    Returns:
+        The updated Task instance.
+    """
     task = Task.objects.get(user=user, id=task_id)
     task.completed = not task.completed
     if task.completed:

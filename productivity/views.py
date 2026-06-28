@@ -487,6 +487,8 @@ class ChatMessageViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        if not self.request or not self.request.user or self.request.user.is_anonymous:
+            return ChatMessage.objects.none()
         qs = ChatMessage.objects.filter(user=self.request.user).order_by('timestamp')
         limit = self.request.query_params.get('limit')
         if limit:
@@ -526,6 +528,8 @@ class TaskViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        if not self.request or not self.request.user or self.request.user.is_anonymous:
+            return Task.objects.none()
         qs = Task.objects.filter(user=self.request.user)
         completed = self.request.query_params.get('completed')
         priority = self.request.query_params.get('priority')
@@ -563,6 +567,8 @@ class HabitViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
+        if not self.request or not self.request.user or self.request.user.is_anonymous:
+            return Habit.objects.none()
         return Habit.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer):
