@@ -368,6 +368,13 @@
         );
     }
 
+    function renderTextSafe(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        // Convert newlines to <br> after setting textContent (which escapes HTML)
+        return div.innerHTML.replace(/\n/g, '<br>');
+    }
+
     function fetchChatLogs() {
         fetch('/api/chat/')
         .then(res => res.json())
@@ -477,7 +484,7 @@
                                 <span class="material-symbols-outlined text-primary text-sm">auto_awesome</span>
                             </div>
                             <div class="flex-1 space-y-sm text-on-surface font-body-lg text-body-lg">
-                                <p class="text-on-surface-variant leading-relaxed">${msg.content.replace(/\n/g, '<br>')}</p>
+                                <p class="text-on-surface-variant leading-relaxed">${renderTextSafe(msg.content)}</p>
                                 ${tableHtml}
                                 ${alertHtml}
                             </div>

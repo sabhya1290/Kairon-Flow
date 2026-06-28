@@ -15,6 +15,7 @@ from .serializers import ChatMessageSerializer
 import datetime
 import functools
 import re
+from django_ratelimit.decorators import ratelimit
 
 def compute_ai_score(priority: str, due_date) -> int:
     """
@@ -600,6 +601,7 @@ def analytics_view(request):
     }
     return render(request, 'productivity/analytics.html', context)
 
+@ratelimit(key='ip', rate='10/m', method='POST', block=True)
 def login_view(request):
     if request.user.is_authenticated:
         if not request.user.profile.onboarding_completed:

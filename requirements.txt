@@ -1,0 +1,8 @@
+asgiref==3.11.1
+Django==6.0.6
+django-ratelimit==4.1.0
+djangorestframework==3.17.1
+python-decouple==3.8
+python-dotenv==1.0.1
+sqlparse==0.5.5
+tzdata==2026.2
