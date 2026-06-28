@@ -357,7 +357,6 @@ def analytics_view(request):
         context['profile'] = profile
 
     # Perform Habit history decoration for template render using HabitEntry database rows
-    import datetime
     today = datetime.date.today()
     monday = today - datetime.timedelta(days=today.weekday())
     sunday = monday + datetime.timedelta(days=6)
