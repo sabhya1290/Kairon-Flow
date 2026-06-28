@@ -209,7 +209,9 @@ def parse_command(user, content) -> tuple[str, dict | None]:
 
     # ── LISTING ───────────────────────────────────────────────
     if any(w in text for w in ['list tasks', 'show tasks', 'view tasks', 'my tasks']):
-        pending = Task.objects.filter(user=user, completed=False).order_by('-priority')
+        pending = Task.objects.filter(
+            user=user, completed=False
+        ).select_related('category').order_by('-ai_score')[:8]
         if pending.exists():
             tasks_str = "\n".join([f"• **{t.title}** ({t.priority.capitalize()})" for t in pending])
             ai_content = f"Here are your pending tasks:\n{tasks_str}"

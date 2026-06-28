@@ -11,6 +11,7 @@ from rest_framework.decorators import action
 
 from .models import UserProfile, Category, Task, Habit, CalendarIntegration, ChatMessage
 from .serializers import ChatMessageSerializer, TaskSerializer, HabitSerializer, CategorySerializer, UserProfileSerializer
+from django.db.models import Q, Sum
 
 import logging
 logger = logging.getLogger(__name__)
@@ -47,10 +48,10 @@ def require_onboarding(view_func):
 @require_onboarding
 def dashboard_view(request):
     # Fetch user's data
-    chat_messages = ChatMessage.objects.filter(user=request.user).order_by('timestamp')
-    priority_tasks = Task.objects.filter(user=request.user, completed=False).order_by('-priority', '-ai_score')[:4]
+    chat_messages = ChatMessage.objects.filter(user=request.user).order_by('timestamp').defer('structured_data')
+    priority_tasks = Task.objects.filter(user=request.user, completed=False).select_related('category').order_by('-ai_score', '-priority')[:4]
     profile = request.user.profile
-    categories = Category.objects.all()
+    categories = Category.objects.filter(Q(user=request.user) | Q(user__isnull=True))
 
     # Simple mock timeline representation
     schedule = profile.preferred_work_hours
@@ -189,6 +190,8 @@ def task_list_view(request):
                     fields['completed'] = completed_str.lower() == "true"
 
                 update_task(request.user, task_id, **fields)
+                from django.core.cache import cache
+                cache.delete(f'analytics_stats_{request.user.id}')
                 return JsonResponse({"status": "success"})
             except Task.DoesNotExist:
                 return JsonResponse({"status": "error", "message": "Task not found"}, status=404)
@@ -218,13 +221,15 @@ def task_list_view(request):
             task_id = request.POST.get("task_id")
             try:
                 task = toggle_task_complete(request.user, task_id)
+                from django.core.cache import cache
+                cache.delete(f'analytics_stats_{request.user.id}')
                 return JsonResponse({"status": "success", "completed": task.completed})
             except Task.DoesNotExist:
                 return JsonResponse({"status": "error", "message": "Task not found"}, status=404)
 
-    tasks = Task.objects.filter(user=request.user).order_by('completed', '-priority', '-ai_score')
+    tasks = Task.objects.filter(user=request.user).select_related('category').order_by('completed', '-ai_score')
     profile = request.user.profile
-    categories = Category.objects.all()
+    categories = Category.objects.filter(Q(user=request.user) | Q(user__isnull=True))
 
     context = {
         'profile': profile,
@@ -287,12 +292,81 @@ def analytics_view(request):
         return JsonResponse({'status': 'error', 'message': 'Unknown action'}, status=400)
 
     # GET — compute real analytics
-    habits = Habit.objects.filter(user=request.user)
+    from django.core.cache import cache
+
+    # GET — check cache first
+    cache_key = f'analytics_stats_{request.user.id}'
+    cached = cache.get(cache_key)
+
+    if cached:
+        context = cached
+        context['habits'] = Habit.objects.filter(user=request.user).prefetch_related('entries')
+        context['current_tab'] = 'analytics'
+        context['profile'] = profile
+    else:
+        habits = Habit.objects.filter(user=request.user).prefetch_related('entries')
+        all_tasks = Task.objects.filter(user=request.user)
+        total_tasks = all_tasks.count()
+        completed_tasks = all_tasks.filter(completed=True).count()
+        completion_rate = round((completed_tasks / total_tasks * 100)) if total_tasks > 0 else 0
+
+        # Task priority breakdown
+        high_count = all_tasks.filter(priority='HIGH').count()
+        medium_count = all_tasks.filter(priority='MEDIUM').count()
+        low_count = all_tasks.filter(priority='LOW').count()
+
+        # Weekly completion trend (last 7 days)
+        today = timezone.localtime(timezone.now()).date()
+        weekly_data = []
+        max_completed_day = 0
+        for i in range(6, -1, -1):
+            day = today - datetime.timedelta(days=i)
+            day_completed = all_tasks.filter(
+                completed=True,
+                completed_at__date=day
+            ).count()
+            if day_completed > max_completed_day:
+                max_completed_day = day_completed
+            weekly_data.append({
+                'label': day.strftime('%a'),
+                'date': day.strftime('%b %d'),
+                'count': day_completed,
+            })
+        # Compute bar height percentages
+        for d in weekly_data:
+            d['pct'] = round((d['count'] / max_completed_day * 100)) if max_completed_day > 0 else 0
+
+        # Completion rate trend (simple: compare this week vs hypothetical baseline)
+        trend_up = completion_rate >= 50
+
+        cached_stats = {
+            'total_tasks': total_tasks,
+            'completed_tasks': completed_tasks,
+            'completion_rate': completion_rate,
+            'trend_up': trend_up,
+            'high_count': high_count,
+            'medium_count': medium_count,
+            'low_count': low_count,
+            'weekly_data': weekly_data,
+        }
+        cache.set(cache_key, cached_stats, timeout=60)  # 60-second TTL
+
+        context = cached_stats
+        context['habits'] = habits
+        context['current_tab'] = 'analytics'
+        context['profile'] = profile
+
+    # Perform Habit history decoration for template render using HabitEntry database rows
     import datetime
     today = datetime.date.today()
     monday = today - datetime.timedelta(days=today.weekday())
     sunday = monday + datetime.timedelta(days=6)
-    for habit in habits:
+
+    # N+1 queries fix: replace Python-level aggregation with SQL aggregate Sum
+    total_streak = context['habits'].aggregate(total=Sum('streak_days'))['total'] or 0
+    context['total_streak'] = total_streak
+
+    for habit in context['habits']:
         entries = {e.date: e.completed for e in habit.entries.filter(date__gte=monday, date__lte=sunday)}
         week_history = []
         DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -302,53 +376,6 @@ def analytics_view(request):
             week_history.append({'day': name, 'completed': completed})
         habit.history = week_history
 
-    all_tasks = Task.objects.filter(user=request.user)
-    total_tasks = all_tasks.count()
-    completed_tasks = all_tasks.filter(completed=True).count()
-    completion_rate = round((completed_tasks / total_tasks * 100)) if total_tasks > 0 else 0
-
-    # Task priority breakdown
-    high_count = all_tasks.filter(priority='HIGH').count()
-    medium_count = all_tasks.filter(priority='MEDIUM').count()
-    low_count = all_tasks.filter(priority='LOW').count()
-
-    # Weekly completion trend (last 7 days)
-    today = timezone.localtime(timezone.now()).date()
-    weekly_data = []
-    max_completed_day = 0
-    for i in range(6, -1, -1):
-        day = today - datetime.timedelta(days=i)
-        day_completed = all_tasks.filter(
-            completed=True,
-            completed_at__date=day
-        ).count()
-        if day_completed > max_completed_day:
-            max_completed_day = day_completed
-        weekly_data.append({
-            'label': day.strftime('%a'),
-            'date': day.strftime('%b %d'),
-            'count': day_completed,
-        })
-    # Compute bar height percentages
-    for d in weekly_data:
-        d['pct'] = round((d['count'] / max_completed_day * 100)) if max_completed_day > 0 else 0
-
-    # Completion rate trend (simple: compare this week vs hypothetical baseline)
-    trend_up = completion_rate >= 50
-
-    context = {
-        'profile': profile,
-        'habits': habits,
-        'current_tab': 'analytics',
-        'total_tasks': total_tasks,
-        'completed_tasks': completed_tasks,
-        'completion_rate': completion_rate,
-        'trend_up': trend_up,
-        'high_count': high_count,
-        'medium_count': medium_count,
-        'low_count': low_count,
-        'weekly_data': weekly_data,
-    }
     return render(request, 'productivity/analytics.html', context)
 
 @ratelimit(key='ip', rate='10/m', method='POST', block=True)
@@ -460,7 +487,14 @@ class ChatMessageViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
-        return ChatMessage.objects.filter(user=self.request.user).order_by('timestamp')
+        qs = ChatMessage.objects.filter(user=self.request.user).order_by('timestamp')
+        limit = self.request.query_params.get('limit')
+        if limit:
+            try:
+                qs = qs[max(0, qs.count() - int(limit)):]
+            except (ValueError, TypeError):
+                pass
+        return qs
 
     def perform_create(self, serializer):
         from .services.ai_service import parse_command
@@ -553,7 +587,7 @@ class HabitViewSet(viewsets.ModelViewSet):
 @require_onboarding
 def settings_view(request):
     profile = request.user.profile
-    categories = Category.objects.all()
+    categories = Category.objects.filter(Q(user=request.user) | Q(user__isnull=True))
     integrations = CalendarIntegration.objects.filter(user=request.user)
 
     if request.method == "POST":

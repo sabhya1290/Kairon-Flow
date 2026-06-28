@@ -315,7 +315,7 @@
         })
         .then(data => {
             // Fetch updated log list and render
-            fetchChatLogs();
+            appendLatestMessages();
         })
         .catch(err => console.error(err));
     });
@@ -341,6 +341,127 @@
         });
     });
 
+    function buildAiMsgHtml(msg) {
+        let tableHtml = '';
+        let alertHtml = '';
+        
+        if(msg.structured_data) {
+            if(msg.structured_data.type === 'table') {
+                let rows = '';
+                msg.structured_data.rows.forEach(row => {
+                    let badgeColor = 'bg-surface-container-highest text-on-surface-variant border border-outline-variant';
+                    if(row.status_color === 'error') {
+                        badgeColor = 'bg-error-container text-on-error-container border border-error/50';
+                    } else if(row.status_color === 'outline') {
+                        badgeColor = 'bg-surface-container-high text-xs border border-outline-variant';
+                    }
+                    rows += `
+                        <tr class="border-b border-outline-variant/20">
+                            <td class="py-sm pr-md text-primary-fixed-dim">${row.section}</td>
+                            <td class="py-sm pr-md text-on-surface">${row.owner}</td>
+                            <td class="py-sm">
+                                <span class="px-2 py-1 rounded-full ${badgeColor} text-xs">
+                                    ${row.status}
+                                </span>
+                            </td>
+                        </tr>
+                    `;
+                });
+                
+                let headers = '';
+                msg.structured_data.headers.forEach(h => {
+                    headers += `<th class="pb-sm pr-md font-medium">${h}</th>`;
+                });
+
+                tableHtml = `
+                    <div class="bg-surface-container p-md rounded-lg border border-outline-variant/30 font-label-sm text-label-sm font-mono overflow-x-auto my-md">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="border-b border-outline-variant/50 text-on-surface-variant">
+                                    ${headers}
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${rows}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }
+
+            if(msg.structured_data.alert) {
+                alertHtml = `
+                    <div class="flex items-center gap-sm bg-surface-container-low p-sm rounded-lg border border-outline-variant w-fit mt-sm">
+                        <span class="material-symbols-outlined text-primary text-sm">check_circle</span>
+                        <span class="text-on-surface-variant text-sm">${msg.structured_data.alert}</span>
+                    </div>
+                `;
+            }
+            
+            if(msg.structured_data.type === 'task_created') {
+                const taskId = msg.structured_data.task_id;
+                const priority = msg.structured_data.priority;
+                
+                const highClass = priority === 'HIGH' ? 'bg-primary-container/20 text-primary border-primary/50' : 'bg-surface-container-high text-on-surface-variant border-outline-variant/50 hover:text-on-surface';
+                const medClass = priority === 'MEDIUM' ? 'bg-primary-container/20 text-primary border-primary/50' : 'bg-surface-container-high text-on-surface-variant border-outline-variant/50 hover:text-on-surface';
+                const lowClass = priority === 'LOW' ? 'bg-primary-container/20 text-primary border-primary/50' : 'bg-surface-container-high text-on-surface-variant border-outline-variant/50 hover:text-on-surface';
+                
+                alertHtml = `
+                    <div class="bg-surface-container p-md rounded-lg border border-outline-variant/30 font-body-md text-sm space-y-md my-md w-full max-w-sm">
+                        <div class="flex items-center justify-between">
+                            <span class="text-on-surface-variant font-medium text-xs font-semibold uppercase tracking-wider">Quick Adjust Task Priority</span>
+                            <span class="text-xs text-outline">#${taskId}</span>
+                        </div>
+                        
+                        <!-- Priority Pills -->
+                        <div class="space-y-xs">
+                            <div class="flex gap-sm">
+                                <button type="button" class="flex-1 py-1.5 rounded text-xs font-semibold border text-center transition-all chat-priority-btn ${highClass}" data-task-id="${taskId}" data-priority="HIGH">High</button>
+                                <button type="button" class="flex-1 py-1.5 rounded text-xs font-semibold border text-center transition-all chat-priority-btn ${medClass}" data-task-id="${taskId}" data-priority="MEDIUM">Medium</button>
+                                <button type="button" class="flex-1 py-1.5 rounded text-xs font-semibold border text-center transition-all chat-priority-btn ${lowClass}" data-task-id="${taskId}" data-priority="LOW">Low</button>
+                            </div>
+                        </div>
+                        
+                        <!-- Time Limit Pills -->
+                        <div class="space-y-xs">
+                            <span class="text-xs text-on-surface-variant font-label-sm uppercase tracking-wider block font-semibold">Set Time Limit</span>
+                            <div class="grid grid-cols-4 gap-xs">
+                                <button type="button" class="py-1.5 rounded text-xs font-semibold border text-center transition-all chat-duration-btn bg-surface-container-high text-on-surface-variant border-outline-variant/50 hover:text-on-surface" data-task-id="${taskId}" data-val="30" data-unit="minutes">30m</button>
+                                <button type="button" class="py-1.5 rounded text-xs font-semibold border text-center transition-all chat-duration-btn bg-surface-container-high text-on-surface-variant border-outline-variant/50 hover:text-on-surface" data-task-id="${taskId}" data-val="2" data-unit="hours">2h</button>
+                                <button type="button" class="py-1.5 rounded text-xs font-semibold border text-center transition-all chat-duration-btn bg-surface-container-high text-on-surface-variant border-outline-variant/50 hover:text-on-surface" data-task-id="${taskId}" data-val="4" data-unit="hours">4h</button>
+                                <button type="button" class="py-1.5 rounded text-xs font-semibold border text-center transition-all chat-duration-btn bg-surface-container-high text-on-surface-variant border-outline-variant/50 hover:text-on-surface" data-task-id="${taskId}" data-val="1" data-unit="days">1d</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        return `
+            <div class="flex gap-md max-w-3xl msg-container fade-in">
+                <div class="w-8 h-8 rounded-full bg-surface-container-high flex items-center justify-center border border-primary/30 shadow-[0_0_8px_rgba(160,120,255,0.3)] flex-shrink-0">
+                    <span class="material-symbols-outlined text-primary text-sm">auto_awesome</span>
+                </div>
+                <div class="flex-1 space-y-sm text-on-surface font-body-lg text-body-lg">
+                    <p class="text-on-surface-variant leading-relaxed">${renderTextSafe(msg.content)}</p>
+                    ${tableHtml}
+                    ${alertHtml}
+                </div>
+            </div>
+        `;
+    }
+
+    function buildUserMsgHtml(msg) {
+        return `
+            <div class="flex gap-md max-w-3xl self-end flex-row-reverse msg-container fade-in">
+                <img alt="User profile" class="w-8 h-8 rounded-full object-cover border border-outline-variant flex-shrink-0" src="{{ profile.avatar_url }}">
+                <div class="bg-surface-container-high text-on-surface p-md rounded-2xl rounded-tr-sm border border-outline-variant/50 max-w-[85%]">
+                    <p class="font-body-md text-body-md">${escapeHTML(msg.content)}</p>
+                </div>
+            </div>
+        `;
+    }
+
     function fetchChatLogs() {
         fetch('/api/chat/')
         .then(res => res.json())
@@ -349,122 +470,9 @@
             messages.forEach(msg => {
                 let html = '';
                 if(msg.role === 'AI') {
-                    let tableHtml = '';
-                    let alertHtml = '';
-                    
-                    if(msg.structured_data) {
-                        if(msg.structured_data.type === 'table') {
-                            let rows = '';
-                            msg.structured_data.rows.forEach(row => {
-                                let badgeColor = 'bg-surface-container-highest text-on-surface-variant border border-outline-variant';
-                                if(row.status_color === 'error') {
-                                    badgeColor = 'bg-error-container text-on-error-container border border-error/50';
-                                } else if(row.status_color === 'outline') {
-                                    badgeColor = 'bg-surface-container-high text-xs border border-outline-variant';
-                                }
-                                rows += `
-                                    <tr class="border-b border-outline-variant/20">
-                                        <td class="py-sm pr-md text-primary-fixed-dim">${row.section}</td>
-                                        <td class="py-sm pr-md text-on-surface">${row.owner}</td>
-                                        <td class="py-sm">
-                                            <span class="px-2 py-1 rounded-full ${badgeColor} text-xs">
-                                                ${row.status}
-                                            </span>
-                                        </td>
-                                    </tr>
-                                `;
-                            });
-                            
-                            let headers = '';
-                            msg.structured_data.headers.forEach(h => {
-                                headers += `<th class="pb-sm pr-md font-medium">${h}</th>`;
-                            });
-
-                            tableHtml = `
-                                <div class="bg-surface-container p-md rounded-lg border border-outline-variant/30 font-label-sm text-label-sm font-mono overflow-x-auto my-md">
-                                    <table class="w-full text-left border-collapse">
-                                        <thead>
-                                            <tr class="border-b border-outline-variant/50 text-on-surface-variant">
-                                                ${headers}
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            ${rows}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            `;
-                        }
-
-                        if(msg.structured_data.alert) {
-                            alertHtml = `
-                                <div class="flex items-center gap-sm bg-surface-container-low p-sm rounded-lg border border-outline-variant w-fit mt-sm">
-                                    <span class="material-symbols-outlined text-primary text-sm">check_circle</span>
-                                    <span class="text-on-surface-variant text-sm">${msg.structured_data.alert}</span>
-                                </div>
-                            `;
-                        }
-                        
-                        if(msg.structured_data.type === 'task_created') {
-                            const taskId = msg.structured_data.task_id;
-                            const priority = msg.structured_data.priority;
-                            
-                            const highClass = priority === 'HIGH' ? 'bg-primary-container/20 text-primary border-primary/50' : 'bg-surface-container-high text-on-surface-variant border-outline-variant/50 hover:text-on-surface';
-                            const medClass = priority === 'MEDIUM' ? 'bg-primary-container/20 text-primary border-primary/50' : 'bg-surface-container-high text-on-surface-variant border-outline-variant/50 hover:text-on-surface';
-                            const lowClass = priority === 'LOW' ? 'bg-primary-container/20 text-primary border-primary/50' : 'bg-surface-container-high text-on-surface-variant border-outline-variant/50 hover:text-on-surface';
-                            
-                            alertHtml = `
-                                <div class="bg-surface-container p-md rounded-lg border border-outline-variant/30 font-body-md text-sm space-y-md my-md w-full max-w-sm">
-                                    <div class="flex items-center justify-between">
-                                        <span class="text-on-surface-variant font-medium text-xs font-semibold uppercase tracking-wider">Quick Adjust Task Priority</span>
-                                        <span class="text-xs text-outline">#${taskId}</span>
-                                    </div>
-                                    
-                                    <!-- Priority Pills -->
-                                    <div class="space-y-xs">
-                                        <div class="flex gap-sm">
-                                            <button type="button" class="flex-1 py-1.5 rounded text-xs font-semibold border text-center transition-all chat-priority-btn ${highClass}" data-task-id="${taskId}" data-priority="HIGH">High</button>
-                                            <button type="button" class="flex-1 py-1.5 rounded text-xs font-semibold border text-center transition-all chat-priority-btn ${medClass}" data-task-id="${taskId}" data-priority="MEDIUM">Medium</button>
-                                            <button type="button" class="flex-1 py-1.5 rounded text-xs font-semibold border text-center transition-all chat-priority-btn ${lowClass}" data-task-id="${taskId}" data-priority="LOW">Low</button>
-                                        </div>
-                                    </div>
-                                    
-                                    <!-- Time Limit Pills -->
-                                    <div class="space-y-xs">
-                                        <span class="text-xs text-on-surface-variant font-label-sm uppercase tracking-wider block font-semibold">Set Time Limit</span>
-                                        <div class="grid grid-cols-4 gap-xs">
-                                            <button type="button" class="py-1.5 rounded text-xs font-semibold border text-center transition-all chat-duration-btn bg-surface-container-high text-on-surface-variant border-outline-variant/50 hover:text-on-surface" data-task-id="${taskId}" data-val="30" data-unit="minutes">30m</button>
-                                            <button type="button" class="py-1.5 rounded text-xs font-semibold border text-center transition-all chat-duration-btn bg-surface-container-high text-on-surface-variant border-outline-variant/50 hover:text-on-surface" data-task-id="${taskId}" data-val="2" data-unit="hours">2h</button>
-                                            <button type="button" class="py-1.5 rounded text-xs font-semibold border text-center transition-all chat-duration-btn bg-surface-container-high text-on-surface-variant border-outline-variant/50 hover:text-on-surface" data-task-id="${taskId}" data-val="4" data-unit="hours">4h</button>
-                                            <button type="button" class="py-1.5 rounded text-xs font-semibold border text-center transition-all chat-duration-btn bg-surface-container-high text-on-surface-variant border-outline-variant/50 hover:text-on-surface" data-task-id="${taskId}" data-val="1" data-unit="days">1d</button>
-                                        </div>
-                                    </div>
-                                </div>
-                            `;
-                        }
-                    }
-
-                    html = `
-                        <div class="flex gap-md max-w-3xl msg-container fade-in">
-                            <div class="w-8 h-8 rounded-full bg-surface-container-high flex items-center justify-center border border-primary/30 shadow-[0_0_8px_rgba(160,120,255,0.3)] flex-shrink-0">
-                                <span class="material-symbols-outlined text-primary text-sm">auto_awesome</span>
-                            </div>
-                            <div class="flex-1 space-y-sm text-on-surface font-body-lg text-body-lg">
-                                <p class="text-on-surface-variant leading-relaxed">${renderTextSafe(msg.content)}</p>
-                                ${tableHtml}
-                                ${alertHtml}
-                            </div>
-                        </div>
-                    `;
+                    html = buildAiMsgHtml(msg);
                 } else {
-                    html = `
-                        <div class="flex gap-md max-w-3xl self-end flex-row-reverse msg-container fade-in">
-                            <img alt="User profile" class="w-8 h-8 rounded-full object-cover border border-outline-variant flex-shrink-0" src="{{ profile.avatar_url }}">
-                            <div class="bg-surface-container-high text-on-surface p-md rounded-2xl rounded-tr-sm border border-outline-variant/50 max-w-[85%]">
-                                <p class="font-body-md text-body-md">${escapeHTML(msg.content)}</p>
-                            </div>
-                        </div>
-                    `;
+                    html = buildUserMsgHtml(msg);
                 }
                 chatLogs.insertAdjacentHTML('beforeend', html);
             });
@@ -475,6 +483,24 @@
             initChatInteractiveBtns();
         })
         .catch(err => console.error(err));
+    }
+
+    function appendLatestMessages() {
+        // Fetch only the last 2 messages (the user echo we already rendered + the new AI reply)
+        fetch('/api/chat/?ordering=-timestamp&limit=2')
+            .then(r => r.json())
+            .then(messages => {
+                // Only append the AI reply (last message with role=AI)
+                const aiMsg = messages.find ? messages.find(m => m.role === 'AI') : null;
+                // Fallback: if limit param not supported, still call full refresh
+                if (!aiMsg) { fetchChatLogs(); return; }
+                // Build and append just the AI message HTML
+                chatLogs.insertAdjacentHTML('beforeend', buildAiMsgHtml(aiMsg));
+                scrollToBottom();
+                reloadSidePanelTasks();
+                initChatInteractiveBtns();
+            })
+            .catch(() => fetchChatLogs()); // fallback to full refresh on error
     }
 
     function reloadSidePanelTasks() {
@@ -611,9 +637,14 @@
                             b.classList.add('bg-surface-container-high', 'text-on-surface-variant');
                         }
                     });
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 300);
+                    // Update priority pill UI immediately without reload
+                    const parentCard = document.querySelector(
+                        `[data-task-id="${taskId}"]#priority-tasks-container [data-task-id="${taskId}"]`
+                    ) || document.querySelector(`#priority-tasks-container [data-task-id="${taskId}"]`);
+                    if (parentCard) {
+                        parentCard.setAttribute('data-priority', priority);
+                    }
+                    reloadSidePanelTasks(); // uses JSON API from Phase 3
                 }
             })
             .catch(err => console.error(err));
@@ -655,9 +686,15 @@
                             b.classList.add('bg-surface-container-high', 'text-on-surface-variant');
                         }
                     });
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 300);
+                    // Update priority pill UI immediately without reload
+                    const parentCard = document.querySelector(
+                        `[data-task-id="${taskId}"]#priority-tasks-container [data-task-id="${taskId}"]`
+                    ) || document.querySelector(`#priority-tasks-container [data-task-id="${taskId}"]`);
+                    if (parentCard) {
+                        parentCard.setAttribute('data-duration-value', val);
+                        parentCard.setAttribute('data-duration-unit', unit);
+                    }
+                    reloadSidePanelTasks(); // uses JSON API from Phase 3
                 }
             })
             .catch(err => console.error(err));
