@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html class="dark" lang="en">
 <head>
@@ -129,6 +130,7 @@
             box-shadow: 0 0 15px rgba(208, 188, 255, 0.3);
         }
     </style>
+    <script src="{% static 'js/kairon-utils.js' %}"></script>
     {% block extra_head %}{% endblock %}
 </head>
 <body class="bg-background text-on-surface font-body-md min-h-screen">

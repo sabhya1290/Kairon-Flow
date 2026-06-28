@@ -335,19 +335,6 @@
 </div>
 
 <script>
-    // CSRF Token Helper
-    function getCsrfToken() {
-        const tokenInput = document.querySelector('[name=csrfmiddlewaretoken]');
-        if (tokenInput) return tokenInput.value;
-        let cookieValue = null;
-        if (document.cookie) {
-            document.cookie.split(';').forEach(c => {
-                c = c.trim();
-                if (c.startsWith('csrftoken=')) cookieValue = decodeURIComponent(c.substring(10));
-            });
-        }
-        return cookieValue;
-    }
 
     // Apply Recommendation — custom toast instead of browser alert
     const applyBtn = document.getElementById('apply-recommendation-btn');

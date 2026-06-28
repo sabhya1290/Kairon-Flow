@@ -245,21 +245,6 @@
     }
     scrollToBottom();
 
-    // CSRF Token Helper
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                    break;
-                }
-            }
-        }
-        return cookieValue;
-    }
 
     // Handle AJAX Task Checkboxes
     document.addEventListener('change', function(e) {
@@ -355,25 +340,6 @@
             .catch(err => console.error(err));
         });
     });
-
-    function escapeHTML(str) {
-        return str.replace(/[&<>'"]/g, 
-            tag => ({
-                '&': '&amp;',
-                '<': '&lt;',
-                '>': '&gt;',
-                "'": '&#39;',
-                '"': '&quot;'
-            }[tag] || tag)
-        );
-    }
-
-    function renderTextSafe(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        // Convert newlines to <br> after setting textContent (which escapes HTML)
-        return div.innerHTML.replace(/\n/g, '<br>');
-    }
 
     function fetchChatLogs() {
         fetch('/api/chat/')
@@ -512,89 +478,66 @@
     }
 
     function reloadSidePanelTasks() {
-        fetch('/tasks/')
-        .then(res => res.text())
-        .then(htmlStr => {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(htmlStr, 'text/html');
-            const tasksList = doc.querySelectorAll('.task-row-el');
-            
-            const container = document.getElementById('priority-tasks-container');
-            if(!container) return;
-            
-            let count = 0;
-            let output = '';
-            tasksList.forEach(row => {
-                const completed = row.getAttribute('data-completed') === 'true';
-                if(completed || count >= 4) return;
-                
-                const taskId = row.getAttribute('data-id');
-                const title = row.getAttribute('data-title');
-                const priority = row.getAttribute('data-priority');
-                const aiScore = row.getAttribute('data-ai-score');
-                const categoryId = row.getAttribute('data-category-id') || '';
-                const dueDate = row.getAttribute('data-due-date') || '';
-                
-                let priorityBadge = '';
-                let bgStyle = 'bg-transparent border-outline-variant/20 hover:bg-surface-container-lowest';
-                let indicator = '';
-                
-                if (priority === 'HIGH') {
-                    priorityBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-error-container/20 text-error border border-error/30 uppercase flex-shrink-0">High</span>`;
-                    bgStyle = 'bg-surface-container border-error/20 hover:border-error/50';
-                    indicator = `<div class="absolute left-0 top-0 bottom-0 w-1 bg-error"></div>`;
-                } else if (priority === 'MEDIUM') {
-                    priorityBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-surface-container-high text-on-surface-variant border border-outline-variant flex-shrink-0">AI: ${aiScore}</span>`;
-                    bgStyle = 'bg-surface-container-low border-outline-variant/30 hover:bg-surface-container';
+        fetch('/api/tasks/?completed=false&limit=4')
+            .then(r => r.json())
+            .then(tasks => {
+                const container = document.getElementById('priority-tasks-container');
+                if (!container) return;
+                if (!tasks.length) {
+                    container.innerHTML = '<p class="text-on-surface-variant text-sm py-4">No active tasks.</p>';
+                    return;
                 }
-                
-                let dueDisplay = 'No deadline';
-                const dueCol = row.querySelector('div:nth-child(5)');
-                if (dueCol) {
-                    dueDisplay = dueCol.innerHTML.trim();
-                }
-                
-                output += `
-                    <div class="group flex items-start gap-sm p-md rounded-lg border transition-colors relative overflow-hidden ${bgStyle}" 
-                         data-task-id="${taskId}" data-title="${title}" data-priority="${priority}"
-                         data-category-id="${categoryId}" data-due-date="${dueDate}">
-                        ${indicator}
-                        <input class="mt-1 rounded bg-surface border-outline-variant text-primary focus:ring-primary focus:ring-offset-background cursor-pointer task-checkbox" 
-                               type="checkbox" data-url="{% url 'tasks' %}" data-task-id="${taskId}">
-                        <div class="flex-1 pr-4">
-                            <div class="flex justify-between items-start mb-1 gap-sm">
-                                <p class="font-body-md text-body-md text-on-surface font-medium leading-tight group-hover:text-primary transition-colors task-title">
-                                    ${title}
-                                </p>
-                                ${priorityBadge}
-                            </div>
-                            <div class="font-label-sm text-label-sm text-on-surface-variant flex flex-col gap-0.5">
-                                ${dueDisplay}
-                            </div>
-                        </div>
-                        <div class="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity absolute right-2 bottom-2">
-                            <button class="text-outline hover:text-on-surface edit-task-trigger" 
-                                    data-task-id="${taskId}" data-title="${title}" data-priority="${priority}"
-                                    data-category-id="${categoryId}" data-due-date="${dueDate}">
-                                <span class="material-symbols-outlined text-[16px]">edit</span>
-                            </button>
-                        </div>
-                    </div>
-                `;
-                count++;
-            });
-            if(output) {
-                container.innerHTML = output;
-            }
-        })
-        .catch(err => console.error(err));
+                container.innerHTML = tasks.map(task => buildTaskCard(task)).join('');
+            })
+            .catch(err => console.error('Task reload failed:', err));
     }
 
-    function getCsrfToken() {
-        const tokenInput = document.querySelector('[name=csrfmiddlewaretoken]');
-        if (tokenInput) return tokenInput.value;
-        return getCookie('csrftoken');
+    function buildTaskCard(task) {
+        const isHigh = task.priority === 'HIGH';
+        const isMed  = task.priority === 'MEDIUM';
+        const bgStyle = isHigh
+            ? 'bg-surface-container border-error/20 hover:border-error/50'
+            : isMed
+                ? 'bg-surface-container-low border-outline-variant/30 hover:bg-surface-container'
+                : 'bg-transparent border-outline-variant/20 hover:bg-surface-container-lowest';
+        const indicator = isHigh ? '<div class="absolute left-0 top-0 bottom-0 w-1 bg-error"></div>' : '';
+        const badge = isHigh
+            ? '<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-error-container/20 text-error border border-error/30 uppercase flex-shrink-0">High</span>'
+            : isMed
+                ? `<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-surface-container-high text-on-surface-variant border border-outline-variant flex-shrink-0">AI: ${task.ai_score}</span>`
+                : '';
+        const due = task.due_date ? new Date(task.due_date).toLocaleDateString() : 'No deadline';
+        return `
+            <div class="group flex items-start gap-sm p-md rounded-lg border transition-colors relative overflow-hidden ${bgStyle}" 
+                 data-task-id="${task.id}" data-title="${escapeHTML(task.title)}" data-priority="${task.priority}"
+                 data-category-id="${task.category ? task.category.id : ''}" data-due-date="${task.due_date || ''}">
+                ${indicator}
+                
+                <input class="mt-1 rounded bg-surface border-outline-variant text-primary focus:ring-primary focus:ring-offset-background cursor-pointer task-checkbox" 
+                       type="checkbox" data-url="/tasks/" data-task-id="${task.id}">
+                
+                <div class="flex-1 pr-4">
+                    <div class="flex justify-between items-start mb-1 gap-sm">
+                        <p class="font-body-md text-body-md text-on-surface font-medium leading-tight group-hover:text-primary transition-colors task-title">
+                            ${escapeHTML(task.title)}
+                        </p>
+                        ${badge}
+                    </div>
+                    <div class="font-label-sm text-label-sm text-on-surface-variant flex flex-col gap-0.5">
+                        ${due}
+                    </div>
+                </div>
+                <div class="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity absolute right-2 bottom-2">
+                    <button class="text-outline hover:text-on-surface edit-task-trigger" 
+                            data-task-id="${task.id}" data-title="${escapeHTML(task.title)}" data-priority="${task.priority}"
+                            data-category-id="${task.category ? task.category.id : ''}" data-due-date="${task.due_date || ''}">
+                        <span class="material-symbols-outlined text-[16px]">edit</span>
+                    </button>
+                </div>
+            </div>
+        `;
     }
+
 
     // Interactive Pills functions
     function initChatInteractiveBtns() {

@@ -10,11 +10,15 @@ from .views import (
     onboarding_view,
     settings_view,
     help_view,
-    ChatMessageViewSet
+    ChatMessageViewSet,
+    TaskViewSet,
+    HabitViewSet
 )
 
 router = DefaultRouter()
 router.register(r'chat', ChatMessageViewSet, basename='chat-api')
+router.register(r'tasks', TaskViewSet, basename='task-api')
+router.register(r'habits', HabitViewSet, basename='habit-api')
 
 urlpatterns = [
     # Page views
