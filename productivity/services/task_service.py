@@ -87,7 +87,7 @@ def setup_onboarding_data(user):
 
     created_cats = []
     for name, color in cats:
-        cat, _ = Category.objects.get_or_create(name=name, defaults={"color": color})
+        cat, _ = Category.objects.get_or_create(user=user, name=name, defaults={"color": color})
         created_cats.append(cat)
 
     # Create starter tasks based on goal

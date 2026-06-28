@@ -288,6 +288,20 @@ def analytics_view(request):
 
     # GET — compute real analytics
     habits = Habit.objects.filter(user=request.user)
+    import datetime
+    today = datetime.date.today()
+    monday = today - datetime.timedelta(days=today.weekday())
+    sunday = monday + datetime.timedelta(days=6)
+    for habit in habits:
+        entries = {e.date: e.completed for e in habit.entries.filter(date__gte=monday, date__lte=sunday)}
+        week_history = []
+        DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+        for i, name in enumerate(DAY_NAMES):
+            d = monday + datetime.timedelta(days=i)
+            completed = entries.get(d, False)
+            week_history.append({'day': name, 'completed': completed})
+        habit.history = week_history
+
     all_tasks = Task.objects.filter(user=request.user)
     total_tasks = all_tasks.count()
     completed_tasks = all_tasks.filter(completed=True).count()
@@ -587,13 +601,15 @@ def settings_view(request):
                     status=400
                 )
 
-            integration = CalendarIntegration.objects.create(
+            integration, created = CalendarIntegration.objects.get_or_create(
                 user=request.user,
                 provider=provider,
                 connected_email=connected_email,
-                sync_active=True,
-                last_synced=timezone.now()
+                defaults={'sync_active': True, 'last_synced': timezone.now()}
             )
+            if not created:
+                return JsonResponse({"status": "error",
+                                     "message": f"{provider} is already connected for this email."}, status=409)
 
             return JsonResponse({
                 "status": "success",
