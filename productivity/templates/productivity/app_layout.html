@@ -78,7 +78,9 @@
                     <img alt="User Avatar" class="w-8 h-8 rounded-full object-cover border border-outline-variant" src="{{ profile.avatar_url }}">
                     <span class="font-label-sm text-label-sm text-on-surface">{{ request.user.username }}</span>
                 </div>
-                <a href="{% url 'logout' %}" class="material-symbols-outlined text-on-surface-variant hover:text-error transition-colors cursor-pointer" title="Sign Out">logout</a>
+                <a href="{% url 'logout' %}" class="text-on-surface-variant hover:text-error transition-colors cursor-pointer flex items-center justify-center" aria-label="Sign out" title="Sign out">
+                    <span class="material-symbols-outlined" aria-hidden="true">logout</span>
+                </a>
             </div>
         </div>
     </aside>
@@ -108,13 +110,13 @@
         </a>
     </nav>
     <!-- Add/Edit Task Modal -->
-    <div id="task-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm hidden">
+    <div id="task-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
         <div class="glass-panel w-full max-w-md p-lg rounded-xl border border-outline-variant/30 text-on-surface shadow-2xl relative mx-4">
             <!-- Modal Header -->
             <div class="flex justify-between items-center mb-md">
                 <h3 id="modal-title" class="font-title-md text-title-md font-semibold text-primary">Add Task</h3>
-                <button type="button" id="close-modal-btn" class="text-on-surface-variant hover:text-on-surface transition-colors">
-                    <span class="material-symbols-outlined">close</span>
+                <button type="button" id="close-modal-btn" class="text-on-surface-variant hover:text-on-surface transition-colors" aria-label="Close modal" title="Close modal">
+                    <span class="material-symbols-outlined" aria-hidden="true">close</span>
                 </button>
             </div>
             <!-- Modal Form -->
@@ -180,7 +182,7 @@
                 
                 <!-- Form actions -->
                 <div class="flex justify-between items-center mt-lg pt-md border-t border-outline-variant/30">
-                    <button type="button" id="delete-task-btn" class="px-md py-2 bg-error/10 hover:bg-error/20 text-error border border-error/30 rounded-lg font-body-md transition-colors hidden">
+                    <button type="button" id="delete-task-btn" class="px-md py-2 bg-error/10 hover:bg-error/20 text-error border border-error/30 rounded-lg font-body-md transition-colors hidden" aria-label="Delete task" title="Delete task">
                         Delete
                     </button>
                     <div class="flex gap-sm ml-auto">
@@ -313,9 +315,48 @@
             const cancelTaskBtn = document.getElementById('cancel-task-btn');
             const closeModalBtn = document.getElementById('close-modal-btn');
 
+            // Escape key closes modals
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    if (!taskModal.classList.contains('hidden')) {
+                        taskModal.classList.add('hidden');
+                    }
+                    if (!confirmModal.classList.contains('hidden')) {
+                        closeConfirmModal();
+                    }
+                }
+            });
 
+            // Focus trap for task modal
+            function trapFocus(modal) {
+                const focusable = modal.querySelectorAll(
+                    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+                );
+                if (!focusable.length) return;
+                const first = focusable[0];
+                const last  = focusable[focusable.length - 1];
 
+                modal.addEventListener('keydown', function onKeyDown(e) {
+                    if (e.key !== 'Tab') return;
+                    if (e.shiftKey) {
+                        if (document.activeElement === first) {
+                            e.preventDefault();
+                            last.focus();
+                        }
+                    } else {
+                        if (document.activeElement === last) {
+                            e.preventDefault();
+                            first.focus();
+                        }
+                    }
+                    // Remove listener when modal closes
+                    if (modal.classList.contains('hidden')) {
+                        modal.removeEventListener('keydown', onKeyDown);
+                    }
+                });
 
+                first.focus();
+            }
 
             function openCreateModal() {
                 modalTitle.textContent = "Add Task";
@@ -332,6 +373,7 @@
                 
                 deleteTaskBtn.classList.add('hidden');
                 taskModal.classList.remove('hidden');
+                trapFocus(taskModal);
             }
 
             function openEditModal(taskId, title, priority, categoryId, dueDate) {
@@ -353,6 +395,7 @@
                 
                 deleteTaskBtn.classList.remove('hidden');
                 taskModal.classList.remove('hidden');
+                trapFocus(taskModal);
             }
 
             function selectTab(type) {
@@ -459,8 +502,11 @@
             });
 
             deleteTaskBtn.addEventListener('click', () => {
-                window.showConfirmModal('Do you want to delete or not?', () => {
-                    const taskId = modalTaskId.value;
+                const taskTitle = taskTitleInput.value || 'this task';
+                window.showConfirmModal(
+                    `Are you sure you want to delete "${taskTitle}"? This cannot be undone.`,
+                    () => {
+                        const taskId = modalTaskId.value;
                     const formData = new FormData();
                     formData.append('action', 'delete');
                     formData.append('task_id', taskId);

@@ -191,8 +191,8 @@
         <div class="glass-panel w-full max-w-md p-lg rounded-xl border border-outline-variant/30 text-on-surface shadow-2xl relative mx-4">
             <div class="flex justify-between items-center mb-md">
                 <h3 id="connect-modal-title" class="font-title-md text-title-md font-semibold text-primary">Connect Integration</h3>
-                <button type="button" onclick="closeConnectModal()" class="text-on-surface-variant hover:text-on-surface transition-colors">
-                    <span class="material-symbols-outlined">close</span>
+                <button type="button" onclick="closeConnectModal()" class="text-on-surface-variant hover:text-on-surface transition-colors" aria-label="Close modal" title="Close modal">
+                    <span class="material-symbols-outlined" aria-hidden="true">close</span>
                 </button>
             </div>
             <form id="connect-modal-form" class="space-y-md">
@@ -259,7 +259,9 @@
                 const integrationId = this.getAttribute('data-id');
                 const provider = this.getAttribute('data-provider');
 
-                window.showConfirmModal(`Disconnect ${provider}? Tasks will no longer sync.`, () => {
+                window.showConfirmModal(
+                    `Disconnect ${provider}? Your calendar sync will stop immediately.`,
+                    () => {
                     const formData = new FormData();
                     formData.append('action', 'disconnect_integration');
                     formData.append('integration_id', integrationId);

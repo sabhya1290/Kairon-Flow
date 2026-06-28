@@ -35,11 +35,11 @@
             </div>
             <!-- View Toggle -->
             <div class="flex items-center bg-surface-container-highest rounded-lg p-1 border border-outline-variant/30">
-                <button id="view-list-btn" class="p-1.5 rounded bg-surface-variant text-primary shadow-sm flex items-center justify-center transition-colors" title="List View">
-                    <span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">view_list</span>
+                <button id="view-list-btn" class="p-1.5 rounded bg-surface-variant text-primary shadow-sm flex items-center justify-center transition-colors" title="List View" aria-label="List View">
+                    <span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;" aria-hidden="true">view_list</span>
                 </button>
-                <button id="view-grid-btn" class="p-1.5 rounded text-on-surface-variant hover:text-on-surface transition-colors flex items-center justify-center" title="Grid View">
-                    <span class="material-symbols-outlined text-sm">grid_view</span>
+                <button id="view-grid-btn" class="p-1.5 rounded text-on-surface-variant hover:text-on-surface transition-colors flex items-center justify-center" title="Grid View" aria-label="Grid View">
+                    <span class="material-symbols-outlined text-sm" aria-hidden="true">grid_view</span>
                 </button>
             </div>
             <!-- Filter -->
@@ -112,83 +112,7 @@
             <!-- Table Body -->
             <div class="flex-1 overflow-y-auto divide-y divide-outline-variant/10" id="tasks-table-body">
                 {% for task in tasks %}
-                    <div class="grid grid-cols-[40px_minmax(200px,2fr)_100px_80px_120px_40px] gap-4 p-4 border-l-2 border-l-transparent row-hover transition-colors items-center group task-row-el" 
-                         data-id="{{ task.id }}" data-title="{{ task.title }}" data-priority="{{ task.priority }}" data-ai-score="{{ task.ai_score }}" data-completed="{% if task.completed %}true{% else %}false{% endif %}"
-                         data-category-id="{{ task.category.id|default:'' }}" data-due-date="{% if task.due_date %}{{ task.due_date|date:'Y-m-d' }}T{{ task.due_date|date:'H:i' }}{% endif %}">
-                        
-                        <div class="flex items-center justify-center">
-                            <input class="rounded border-outline-variant bg-surface-container text-primary focus:ring-primary focus:ring-offset-surface w-4 h-4 cursor-pointer task-row-checkbox" 
-                                   type="checkbox" {% if task.completed %}checked{% endif %}
-                                   data-task-id="{{ task.id }}">
-                        </div>
-                        
-                        <div class="flex items-center gap-3 min-w-0">
-                            {% if task.priority == 'HIGH' %}
-                                <span class="w-2 h-2 rounded-full bg-error flex-shrink-0"></span>
-                            {% elif task.priority == 'MEDIUM' %}
-                                <span class="w-2 h-2 rounded-full bg-secondary-container flex-shrink-0"></span>
-                            {% else %}
-                                <span class="w-2 h-2 rounded-full border border-outline-variant flex-shrink-0"></span>
-                            {% endif %}
-                            
-                            <span class="font-title-md text-on-surface truncate font-medium task-row-title {% if task.completed %}line-through opacity-50{% endif %}">
-                                {{ task.title }}
-                            </span>
-                        </div>
-                        
-                        <div>
-                            {% if task.category %}
-                                <span class="px-2 py-1 rounded-md bg-surface-container-high text-on-surface-variant font-label-sm text-xs border border-outline-variant/30">
-                                    #{{ task.category.name }}
-                                </span>
-                            {% else %}
-                                <span class="px-2 py-1 rounded-md bg-surface-container-high text-on-surface-variant/40 font-label-sm text-xs border border-outline-variant/10">
-                                    None
-                                </span>
-                            {% endif %}
-                        </div>
-                        
-                        <div class="flex justify-center">
-                            {% if task.priority == 'HIGH' %}
-                                <div class="w-8 h-8 rounded flex items-center justify-center bg-error/10 text-error font-label-sm border border-error/20 font-bold shadow-[0_0_8px_rgba(255,180,171,0.2)]">
-                                    {{ task.ai_score }}
-                                </div>
-                            {% elif task.priority == 'MEDIUM' %}
-                                <div class="w-8 h-8 rounded flex items-center justify-center bg-secondary-container/10 text-secondary border border-secondary-container/30 font-label-sm">
-                                    {{ task.ai_score }}
-                                </div>
-                            {% else %}
-                                <div class="w-8 h-8 rounded flex items-center justify-center bg-surface-container-high text-outline border border-outline-variant/30 font-label-sm">
-                                    {{ task.ai_score }}
-                                </div>
-                            {% endif %}
-                        </div>
-                        
-                        <div class="font-body-md text-sm {% if task.due_date|is_overdue %}text-error{% elif task.priority == 'HIGH' %}text-error{% else %}text-on-surface-variant{% endif %}">
-                            {% if task.due_date %}
-                                {{ task.due_date|format_due }}
-                                <span class="block font-label-sm text-label-sm {% if task.due_date|is_overdue %}text-error{% else %}text-primary{% endif %} mt-0.5">
-                                    ⏱ {{ task.due_date|time_remaining }}
-                                </span>
-                            {% else %}
-                                No deadline
-                            {% endif %}
-                        </div>
-                        
-                        <div class="flex justify-center opacity-0 group-hover:opacity-100 transition-opacity gap-2">
-                            <button class="text-outline hover:text-on-surface edit-task-trigger" 
-                                    data-task-id="{{ task.id }}" data-title="{{ task.title }}" data-priority="{{ task.priority }}"
-                                    data-category-id="{{ task.category.id|default:'' }}" data-due-date="{% if task.due_date %}{{ task.due_date|date:'Y-m-d' }}T{{ task.due_date|date:'H:i' }}{% endif %}"
-                                    title="Edit Task">
-                                <span class="material-symbols-outlined text-sm">edit</span>
-                            </button>
-                            <button class="text-outline hover:text-error delete-task-row-btn" 
-                                    data-task-id="{{ task.id }}"
-                                    title="Delete Task">
-                                <span class="material-symbols-outlined text-sm">delete</span>
-                            </button>
-                        </div>
-                    </div>
+                    {% include 'productivity/_task_card.html' with task=task %}
                 {% empty %}
                     <div class="p-lg text-center text-on-surface-variant font-body-lg">
                         No tasks found. Try typing a message in the chat box to assign one!

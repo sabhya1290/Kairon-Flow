@@ -1,0 +1,51 @@
+{% comment %}
+Context variables expected:
+  task       — Task instance
+  categories — QuerySet of Category
+{% endcomment %}
+<div class="group flex items-start gap-sm p-md rounded-lg border transition-colors relative overflow-hidden dash-task-item
+    {% if task.priority == 'HIGH' %}bg-surface-container border-error/20 hover:border-error/50
+    {% elif task.priority == 'MEDIUM' %}bg-surface-container-low border-outline-variant/30 hover:bg-surface-container
+    {% else %}bg-transparent border-outline-variant/20 hover:bg-surface-container-lowest{% endif %}"
+    data-task-id="{{ task.id }}" data-title="{{ task.title }}" data-priority="{{ task.priority }}"
+    data-category-id="{{ task.category.id|default:'' }}" data-due-date="{% if task.due_date %}{{ task.due_date|date:'Y-m-d' }}T{{ task.due_date|date:'H:i' }}{% endif %}">
+    
+    {% if task.priority == 'HIGH' %}
+        <div class="absolute left-0 top-0 bottom-0 w-1 bg-error"></div>
+    {% endif %}
+    
+    <input class="mt-1 rounded bg-surface border-outline-variant text-primary focus:ring-primary focus:ring-offset-background cursor-pointer task-checkbox" 
+           type="checkbox" {% if task.completed %}checked{% endif %}
+           data-url="{% url 'tasks' %}" data-task-id="{{ task.id }}"
+           aria-label="Toggle completion for {{ task.title }}">
+    
+    <div class="flex-1 pr-4">
+        <div class="flex justify-between items-start mb-1 gap-sm">
+            <p class="font-body-md text-body-md text-on-surface font-medium leading-tight group-hover:text-primary transition-colors task-title {% if task.completed %}line-through opacity-50{% endif %}">
+                {{ task.title }}
+            </p>
+            {% if task.priority == 'HIGH' %}
+                <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-error-container/20 text-error border border-error/30 uppercase flex-shrink-0">High</span>
+            {% elif task.priority == 'MEDIUM' %}
+                <span class="px-2 py-0.5 rounded text-[10px] font-medium bg-surface-container-high text-on-surface-variant border border-outline-variant flex-shrink-0">AI: {{ task.ai_score }}</span>
+            {% endif %}
+        </div>
+        <p class="font-label-sm text-label-sm text-on-surface-variant flex items-center gap-1">
+            <span class="material-symbols-outlined text-[14px]" aria-hidden="true">schedule</span> 
+            {% if task.due_date %}
+                ⏱ {{ task.due_date|time_remaining }}
+            {% else %}
+                No deadline
+            {% endif %}
+        </p>
+    </div>
+    
+    <div class="flex justify-end opacity-0 group-hover:opacity-100 transition-opacity absolute right-2 bottom-2">
+        <button class="text-outline hover:text-on-surface edit-task-trigger" 
+                data-task-id="{{ task.id }}" data-title="{{ task.title }}" data-priority="{{ task.priority }}"
+                data-category-id="{{ task.category.id|default:'' }}" data-due-date="{% if task.due_date %}{{ task.due_date|date:'Y-m-d' }}T{{ task.due_date|date:'H:i' }}{% endif %}"
+                aria-label="Edit task" title="Edit task">
+            <span class="material-symbols-outlined text-[16px]" aria-hidden="true">edit</span>
+        </button>
+    </div>
+</div>
